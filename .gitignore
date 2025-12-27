@@ -1,0 +1,24 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+
+# Android
+android/.gradle
+android/local.properties
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+macos/Pods/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.iml
