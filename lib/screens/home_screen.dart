@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'chat_list_screen.dart';
 
 import '../state/app_state.dart';
 
@@ -51,7 +52,17 @@ class HomeScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 16),
-
+          _ActionCard(
+            title: 'Chats',
+            subtitle: 'Your connected conversations',
+            icon: Icons.chat_bubble_outline,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatListScreen()),
+              );
+            },
+          ),
           // 💬 COMMUNITY CARD
           _ActionCard(
             title: 'Community',

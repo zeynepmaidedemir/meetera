@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meetera/state/chat_state.dart';
+import 'package:meetera/state/community_state.dart';
+import 'package:meetera/state/event_state.dart';
 import 'package:provider/provider.dart';
 
 import 'state/app_state.dart';
@@ -11,6 +13,8 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => ChatState()), // 🔥 BU ŞART
+        ChangeNotifierProvider(create: (_) => CommunityState()),
+        ChangeNotifierProvider(create: (_) => EventState()),
       ],
       child: const MyApp(),
     ),

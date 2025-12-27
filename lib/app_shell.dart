@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meetera/screens/events_screen.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/buddy_screen.dart';
@@ -14,7 +15,12 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int index = 0;
 
-  final screens = const [HomeScreen(), BuddyScreen(), CommunityScreen()];
+  final screens = const [
+    HomeScreen(),
+    BuddyScreen(),
+    CommunityScreen(),
+    EventsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +42,10 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.forum_outlined),
             label: 'Community',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.event_outlined),
+            label: 'Events',
           ),
         ],
       ),
