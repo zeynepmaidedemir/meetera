@@ -6,6 +6,11 @@ class CommunityState extends ChangeNotifier {
   final List<CommunityComment> _comments = [];
 
   // =====================
+  // 🔹 AI & dış erişim (READ-ONLY)
+  // =====================
+  List<CommunityPost> get posts => List.unmodifiable(_posts);
+
+  // =====================
   // POSTS
   // =====================
   List<CommunityPost> postsForCity(String city) {

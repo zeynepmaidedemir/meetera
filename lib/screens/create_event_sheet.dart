@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../state/event_state.dart';
-import '../state/app_state.dart';
-
-const mockEventImages = [
-  'https://images.unsplash.com/photo-1515169067865-5387ec356754',
-  'https://images.unsplash.com/photo-1508609349937-5ec4ae374ebf',
-  'https://images.unsplash.com/photo-1528605248644-14dd04022da1',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-];
 
 class CreateEventSheet extends StatefulWidget {
   const CreateEventSheet({super.key});
@@ -19,17 +10,25 @@ class CreateEventSheet extends StatefulWidget {
 }
 
 class _CreateEventSheetState extends State<CreateEventSheet> {
-  final titleCtrl = TextEditingController();
-  final descCtrl = TextEditingController();
-  final locationCtrl = TextEditingController();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
 
-  DateTime? selectedDate;
-  TimeOfDay? selectedTime;
-  String? selectedImage;
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final city = context.read<AppState>().cityLabel.split(',').first;
+    final eventState = context.read<EventState>();
+    final userId = 'me';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -40,159 +39,100 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       ),
       child: SingleChildScrollView(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Create Event',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(labelText: 'Event title'),
             ),
             const SizedBox(height: 12),
 
             TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Title'),
-            ),
-            const SizedBox(height: 8),
-
-            TextField(
-              controller: descCtrl,
-              maxLines: 3,
+              controller: _descriptionController,
               decoration: const InputDecoration(labelText: 'Description'),
+              maxLines: 3,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             TextField(
-              controller: locationCtrl,
+              controller: _locationController,
               decoration: const InputDecoration(labelText: 'Location'),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-
-            // 🖼️ MOCK IMAGE PICKER
-            SizedBox(
-              height: 90,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: mockEventImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final url = mockEventImages[i];
-                  final selected = selectedImage == url;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedImage = selected ? null : url;
-                      });
-                    },
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            url,
-                            width: 120,
-                            height: 90,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        if (selected)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
+            // DATE
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      selectedDate = await showDatePicker(
-                        context: context,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      setState(() {});
-                    },
-                    child: Text(
-                      selectedDate == null
-                          ? 'Select Date'
-                          : selectedDate!.toString().split(' ')[0],
-                    ),
+                  child: Text(
+                    '📅 ${_selectedDate.day}.${_selectedDate.month}.${_selectedDate.year}',
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      selectedTime = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      setState(() {});
-                    },
-                    child: Text(
-                      selectedTime == null
-                          ? 'Select Time'
-                          : selectedTime!.format(context),
-                    ),
-                  ),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setState(() => _selectedDate = picked);
+                    }
+                  },
+                  child: const Text('Select date'),
                 ),
               ],
             ),
 
-            const SizedBox(height: 16),
+            // TIME
+            Row(
+              children: [
+                Expanded(child: Text('🕒 ${_selectedTime.format(context)}')),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _selectedTime,
+                    );
+                    if (picked != null) {
+                      setState(() => _selectedTime = picked);
+                    }
+                  },
+                  child: const Text('Select time'),
+                ),
+              ],
+            ),
 
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  if (titleCtrl.text.isEmpty ||
-                      descCtrl.text.isEmpty ||
-                      locationCtrl.text.isEmpty ||
-                      selectedDate == null ||
-                      selectedTime == null)
-                    return;
+            const SizedBox(height: 24),
 
-                  final dateTime = DateTime(
-                    selectedDate!.year,
-                    selectedDate!.month,
-                    selectedDate!.day,
-                    selectedTime!.hour,
-                    selectedTime!.minute,
-                  );
+            FilledButton(
+              onPressed: () {
+                final title = _titleController.text.trim();
+                final description = _descriptionController.text.trim();
+                final location = _locationController.text.trim();
 
-                  context.read<EventState>().createEvent(
-                    city: city,
-                    title: titleCtrl.text.trim(),
-                    description: descCtrl.text.trim(),
-                    location: locationCtrl.text.trim(),
-                    dateTime: dateTime,
-                    creatorId: 'me',
-                    creatorName: 'You',
-                    imageUrl: selectedImage,
-                  );
+                if (title.isEmpty || description.isEmpty) return;
 
-                  Navigator.pop(context);
-                },
-                child: const Text('Create'),
-              ),
+                final dateTime = DateTime(
+                  _selectedDate.year,
+                  _selectedDate.month,
+                  _selectedDate.day,
+                  _selectedTime.hour,
+                  _selectedTime.minute,
+                );
+
+                eventState.addEvent(
+                  title: title,
+                  description: description,
+                  location: location,
+                  dateTime: dateTime,
+                  creatorId: userId,
+                );
+
+                Navigator.pop(context);
+              },
+              child: const Text('Create event'),
             ),
           ],
         ),

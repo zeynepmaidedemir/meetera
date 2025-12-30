@@ -1,3 +1,4 @@
+import '../services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,21 +27,14 @@ class EventDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Event Details'),
         actions: [
-          // 📅 ADD TO CALENDAR
           IconButton(
             icon: const Icon(Icons.calendar_today_outlined),
-            tooltip: 'Add to calendar',
             onPressed: _addToCalendar,
           ),
-
-          // 🔗 SHARE
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            tooltip: 'Share event',
             onPressed: _shareEvent,
           ),
-
-          // 🗑️ DELETE (CREATOR ONLY)
           if (event.creatorId == userId)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -54,52 +48,47 @@ class EventDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 🖼️ IMAGE
-          if (event.imageUrl != null) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                event.imageUrl!,
-                height: 220,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // TITLE
           Text(event.title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
 
-          // META
           Text(
             '📍 ${event.location}',
             style: const TextStyle(color: Colors.grey),
           ),
-          const SizedBox(height: 4),
           Text(
-            '🕒 ${_formatDateTime(event.dateTime)}',
+            '🕒 ${event.dateTime}',
             style: const TextStyle(color: Colors.grey),
           ),
 
-          const SizedBox(height: 16),
+          IconButton(
+            icon: const Icon(Icons.notifications_active_outlined),
+            tooltip: 'Remind me',
+            onPressed: () {
+              final reminderTime = event.dateTime.subtract(
+                const Duration(minutes: 30),
+              );
 
-          // DESCRIPTION
-          Text(event.description, style: Theme.of(context).textTheme.bodyLarge),
+              NotificationService.scheduleReminder(
+                id: event.dateTime.millisecondsSinceEpoch,
+                title: 'Upcoming Event',
+                body: event.title,
+                scheduledDate: reminderTime,
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+          Text(event.description),
 
           const SizedBox(height: 24),
-
-          // PARTICIPATION
           Row(
             children: [
               Expanded(
                 child: FilledButton.icon(
                   icon: Icon(isInterested ? Icons.star : Icons.star_border),
                   label: Text('Interested (${event.interestedUserIds.length})'),
-                  onPressed: () {
-                    eventState.toggleInterested(event.id, userId);
-                  },
+                  onPressed: () =>
+                      eventState.toggleInterested(event.id, userId),
                 ),
               ),
               const SizedBox(width: 12),
@@ -109,9 +98,7 @@ class EventDetailScreen extends StatelessWidget {
                     isGoing ? Icons.check_circle : Icons.check_circle_outline,
                   ),
                   label: Text('Going (${event.goingUserIds.length})'),
-                  onPressed: () {
-                    eventState.toggleGoing(event.id, userId);
-                  },
+                  onPressed: () => eventState.toggleGoing(event.id, userId),
                 ),
               ),
             ],
@@ -121,7 +108,6 @@ class EventDetailScreen extends StatelessWidget {
     );
   }
 
-  // 📅 CALENDAR
   void _addToCalendar() {
     final calendarEvent = cal.Event(
       title: event.title,
@@ -130,33 +116,10 @@ class EventDetailScreen extends StatelessWidget {
       startDate: event.dateTime,
       endDate: event.dateTime.add(const Duration(hours: 2)),
     );
-
     cal.Add2Calendar.addEvent2Cal(calendarEvent);
   }
 
-  // 🔗 SHARE
   void _shareEvent() {
-    final link = 'https://meetera.app/event/${event.id}';
-
-    final message =
-        '''
-🎉 ${event.title}
-
-📍 ${event.location}
-🕒 ${_formatDateTime(event.dateTime)}
-
-Add to your calendar & join us 👇
-$link
-''';
-
-    Share.share(message);
-  }
-
-  static String _formatDateTime(DateTime dt) {
-    final date =
-        '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-    final time =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    return '$date – $time';
+    Share.share('${event.title}\n${event.location}\n${event.dateTime}');
   }
 }

@@ -4,64 +4,72 @@ import '../data/event_models.dart';
 class EventState extends ChangeNotifier {
   final List<Event> _events = [];
 
+  List<Event> get events => List.unmodifiable(_events);
+
+  // ❗ ŞİMDİLİK FİLTRE YOK → EVENTLER GÖRÜNSÜN
   List<Event> eventsForCity(String city) {
-    return _events.where((e) => e.city == city).toList()
-      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    return _events;
   }
 
-  void createEvent({
-    required String city,
+  // ➕ ADD EVENT (STABLE)
+  void addEvent({
     required String title,
     required String description,
-    required DateTime dateTime,
     required String location,
+    required DateTime dateTime,
     required String creatorId,
-    required String creatorName,
-    String? imageUrl,
   }) {
-    _events.add(
-      Event(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        city: city,
-        title: title,
-        description: description,
-        dateTime: dateTime,
-        location: location,
-        creatorId: creatorId,
-        creatorName: creatorName,
-        interestedUserIds: [],
-        goingUserIds: [],
-        createdAt: DateTime.now(),
-        imageUrl: imageUrl,
-      ),
+    final newEvent = Event(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      description: description,
+      location: location,
+      dateTime: dateTime,
+
+      // modelin zorunlu alanları
+      city: location,
+      creatorId: creatorId,
+      creatorName: 'You',
+      createdAt: DateTime.now(),
+
+      imageUrl: null,
+      interestedUserIds: [],
+      goingUserIds: [],
     );
+
+    _events.insert(0, newEvent);
     notifyListeners();
   }
 
+  // ⭐ Interested
+  void toggleInterested(String eventId, String userId) {
+    final event = _events.firstWhere((e) => e.id == eventId);
+
+    if (event.interestedUserIds.contains(userId)) {
+      event.interestedUserIds.remove(userId);
+    } else {
+      event.interestedUserIds.add(userId);
+      event.goingUserIds.remove(userId);
+    }
+    notifyListeners();
+  }
+
+  // ✅ Going
+  void toggleGoing(String eventId, String userId) {
+    final event = _events.firstWhere((e) => e.id == eventId);
+
+    if (event.goingUserIds.contains(userId)) {
+      event.goingUserIds.remove(userId);
+    } else {
+      event.goingUserIds.add(userId);
+      event.interestedUserIds.remove(userId);
+    }
+    notifyListeners();
+  }
+
+  // 🗑️ Delete
   void deleteEvent(String eventId, String userId) {
     _events.removeWhere((e) => e.id == eventId && e.creatorId == userId);
-    notifyListeners();
-  }
-
-  void toggleInterested(String eventId, String userId) {
-    final e = _events.firstWhere((e) => e.id == eventId);
-    if (e.interestedUserIds.contains(userId)) {
-      e.interestedUserIds.remove(userId);
-    } else {
-      e.interestedUserIds.add(userId);
-      e.goingUserIds.remove(userId);
-    }
-    notifyListeners();
-  }
-
-  void toggleGoing(String eventId, String userId) {
-    final e = _events.firstWhere((e) => e.id == eventId);
-    if (e.goingUserIds.contains(userId)) {
-      e.goingUserIds.remove(userId);
-    } else {
-      e.goingUserIds.add(userId);
-      e.interestedUserIds.remove(userId);
-    }
     notifyListeners();
   }
 

@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:meetera/state/chat_state.dart';
-import 'package:meetera/state/community_state.dart';
-import 'package:meetera/state/event_state.dart';
 import 'package:provider/provider.dart';
 
+import 'services/notification_service.dart';
+
 import 'state/app_state.dart';
+import 'state/chat_state.dart';
+import 'state/community_state.dart';
+import 'state/event_state.dart';
+
 import 'onboarding/onboarding_gate.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔔 Notification init (SAFE)
+  await NotificationService.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
-        ChangeNotifierProvider(create: (_) => ChatState()), // 🔥 BU ŞART
+        ChangeNotifierProvider(create: (_) => ChatState()),
         ChangeNotifierProvider(create: (_) => CommunityState()),
         ChangeNotifierProvider(create: (_) => EventState()),
       ],
@@ -26,12 +34,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppState(),
-      child: const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: OnboardingGate(), // 🔥 BURASI
-      ),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: OnboardingGate(),
     );
   }
 }
