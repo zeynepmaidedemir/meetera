@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meetera/ai/ai_chat_list_screen.dart';
 import 'package:provider/provider.dart';
 
 // Screens
@@ -96,14 +97,9 @@ class _AppShellState extends State<AppShell> {
         final appState = context.read<AppState>();
         final eventState = context.read<EventState>();
 
-        final aiContext = AiContext(
-          city: appState.cityLabel,
-          events: eventState.eventsForCity(appState.cityLabel.split(',').first),
-        );
-
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => AiScreen(contextData: aiContext)),
+          MaterialPageRoute(builder: (_) => const AiChatListScreen()),
         );
       },
     );

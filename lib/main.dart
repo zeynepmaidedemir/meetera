@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meetera/state/ai_chat_state.dart';
 import 'package:provider/provider.dart';
 
 import 'services/notification_service.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ChatState()),
         ChangeNotifierProvider(create: (_) => CommunityState()),
         ChangeNotifierProvider(create: (_) => EventState()),
+        ChangeNotifierProvider(create: (_) => AiChatState()),
       ],
       child: const MyApp(),
     ),

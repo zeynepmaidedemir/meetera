@@ -1,34 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'ai_context.dart';
+import '../state/ai_chat_state.dart';
+import '../state/app_state.dart';
 import 'ai_service.dart';
+import 'widgets/ai_quick_buttons.dart';
+import 'widgets/checklist_card.dart';
 
 class AiScreen extends StatefulWidget {
-  final AiContext contextData;
-
-  const AiScreen({super.key, required this.contextData});
+  const AiScreen({super.key});
 
   @override
   State<AiScreen> createState() => _AiScreenState();
 }
 
 class _AiScreenState extends State<AiScreen> {
-  final _controller = TextEditingController();
-  final List<_Message> _messages = [];
+  final TextEditingController _controller = TextEditingController();
   bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
+    final aiState = context.watch<AiChatState>();
+    final appState = context.watch<AppState>();
+    final chat = aiState.activeChat;
+
+    if (chat == null) {
+      return const Scaffold(body: Center(child: Text('No active chat')));
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Ask MeetEra AI')),
+      appBar: AppBar(title: Text(chat.title)),
       body: Column(
         children: [
+          // ⚡ QUICK ACTIONS
+          AiQuickButtons(
+            onSend: (text) {
+              _sendQuick(text, aiState, appState);
+            },
+          ),
+
+          // 💬 CHAT
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
+              itemCount: chat.messages.length,
               itemBuilder: (_, i) {
-                final m = _messages[i];
+                final m = chat.messages[i];
+
+                // 🧳 CHECKLIST UI
+                if (!m.isUser &&
+                    m.text.toLowerCase().contains('before arrival')) {
+                  return ErasmusChecklistCard(text: m.text);
+                }
+
                 return Align(
                   alignment: m.isUser
                       ? Alignment.centerRight
@@ -53,13 +77,15 @@ class _AiScreenState extends State<AiScreen> {
               },
             ),
           ),
-          _buildInput(),
+
+          // ⌨️ INPUT
+          _buildInput(aiState, appState),
         ],
       ),
     );
   }
 
-  Widget _buildInput() {
+  Widget _buildInput(AiChatState aiState, AppState appState) {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -67,46 +93,63 @@ class _AiScreenState extends State<AiScreen> {
           Expanded(
             child: TextField(
               controller: _controller,
-              decoration: const InputDecoration(hintText: 'Ask something…'),
+              decoration: const InputDecoration(hintText: 'Ask MeetEra AI…'),
             ),
           ),
           IconButton(
             icon: _loading
-                ? const CircularProgressIndicator()
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.send),
-            onPressed: _loading ? null : _send,
+            onPressed: _loading ? null : () => _send(aiState, appState),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _send() async {
+  // ✉️ NORMAL SEND
+  Future<void> _send(AiChatState aiState, AppState appState) async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _messages.add(_Message(text, true));
-      _controller.clear();
-      _loading = true;
-    });
+    aiState.addMessage(text: text, isUser: true);
+    _controller.clear();
+    setState(() => _loading = true);
 
-    final res = await AiService.askAi(
-      message: text,
-      context: widget.contextData,
-      // 🔜 ileride GPS ekleriz
-    );
+    await _askAi(aiState, appState);
 
-    setState(() {
-      _messages.add(_Message(res['reply'] ?? '🤖'));
-      _loading = false;
-    });
+    setState(() => _loading = false);
   }
-}
 
-class _Message {
-  final String text;
-  final bool isUser;
+  // ⚡ QUICK ACTION SEND
+  Future<void> _sendQuick(
+    String text,
+    AiChatState aiState,
+    AppState appState,
+  ) async {
+    aiState.addMessage(text: text, isUser: true);
+    setState(() => _loading = true);
 
-  _Message(this.text, [this.isUser = false]);
+    await _askAi(aiState, appState);
+
+    setState(() => _loading = false);
+  }
+
+  // 🤖 TEK AI İSTEK NOKTASI (ÇOK ÖNEMLİ)
+  Future<void> _askAi(AiChatState aiState, AppState appState) async {
+    try {
+      final res = await AiService.askAi(
+        messages: aiState.buildChatHistory(),
+        city: appState.cityLabel,
+      );
+
+      aiState.addMessage(text: res['reply'] ?? '🤖', isUser: false);
+    } catch (e) {
+      aiState.addMessage(text: '⚠️ AI connection error', isUser: false);
+    }
+  }
 }
