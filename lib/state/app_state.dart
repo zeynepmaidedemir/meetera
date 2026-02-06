@@ -5,6 +5,10 @@ class AppState extends ChangeNotifier {
   String? _city;
   String? _country;
 
+  // 📍 LOCATION (MAP FEATURE İÇİN EKLENDİ)
+  double? _lat;
+  double? _lng;
+
   // 🎯 INTERESTS
   final Set<String> _interests = {};
   bool _interestsCompleted = false;
@@ -16,8 +20,12 @@ class AppState extends ChangeNotifier {
   // GETTERS
   // =====================
   bool get hasCity => _city != null && _country != null;
+  bool get hasLocation => _lat != null && _lng != null;
 
   String get cityLabel => hasCity ? '$_city, $_country' : 'City not selected';
+
+  double? get lat => _lat;
+  double? get lng => _lng;
 
   Set<String> get interests => _interests;
   bool get interestsCompleted => _interestsCompleted;
@@ -35,6 +43,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 📍 LOCATION
+  void setLocation({required double lat, required double lng}) {
+    _lat = lat;
+    _lng = lng;
+    notifyListeners();
+  }
+
+  // 🎯 INTERESTS
   void toggleInterest(String interest) {
     _interests.contains(interest)
         ? _interests.remove(interest)
@@ -47,6 +63,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 🤝 BUDDY
   void connectBuddy(String buddyId) {
     if (_connectedBuddyIds.contains(buddyId)) return;
     _connectedBuddyIds.add(buddyId);

@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../state/ai_chat_state.dart';
 import '../state/app_state.dart';
 import 'ai_service.dart';
-import 'widgets/ai_quick_buttons.dart';
+import 'models/map_place.dart';
+import 'widgets/map_places_card.dart';
 import 'widgets/checklist_card.dart';
+import 'widgets/ai_quick_buttons.dart';
 
 class AiScreen extends StatefulWidget {
   const AiScreen({super.key});
@@ -15,7 +17,7 @@ class AiScreen extends StatefulWidget {
 }
 
 class _AiScreenState extends State<AiScreen> {
-  final TextEditingController _controller = TextEditingController();
+  final _controller = TextEditingController();
   bool _loading = false;
 
   @override
@@ -32,14 +34,7 @@ class _AiScreenState extends State<AiScreen> {
       appBar: AppBar(title: Text(chat.title)),
       body: Column(
         children: [
-          // ⚡ QUICK ACTIONS
-          AiQuickButtons(
-            onSend: (text) {
-              _sendQuick(text, aiState, appState);
-            },
-          ),
-
-          // 💬 CHAT
+          AiQuickButtons(onSend: (text) => _send(text, aiState, appState)),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -47,9 +42,11 @@ class _AiScreenState extends State<AiScreen> {
               itemBuilder: (_, i) {
                 final m = chat.messages[i];
 
-                // 🧳 CHECKLIST UI
-                if (!m.isUser &&
-                    m.text.toLowerCase().contains('before arrival')) {
+                if (!m.isUser && m.places != null && m.places!.isNotEmpty) {
+                  return MapPlacesCard(places: m.places!);
+                }
+
+                if (!m.isUser && m.text.toLowerCase().contains('checklist')) {
                   return ErasmusChecklistCard(text: m.text);
                 }
 
@@ -77,8 +74,6 @@ class _AiScreenState extends State<AiScreen> {
               },
             ),
           ),
-
-          // ⌨️ INPUT
           _buildInput(aiState, appState),
         ],
       ),
@@ -98,58 +93,44 @@ class _AiScreenState extends State<AiScreen> {
           ),
           IconButton(
             icon: _loading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const CircularProgressIndicator()
                 : const Icon(Icons.send),
-            onPressed: _loading ? null : () => _send(aiState, appState),
+            onPressed: _loading
+                ? null
+                : () => _send(_controller.text, aiState, appState),
           ),
         ],
       ),
     );
   }
 
-  // ✉️ NORMAL SEND
-  Future<void> _send(AiChatState aiState, AppState appState) async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    aiState.addMessage(text: text, isUser: true);
-    _controller.clear();
-    setState(() => _loading = true);
-
-    await _askAi(aiState, appState);
-
-    setState(() => _loading = false);
-  }
-
-  // ⚡ QUICK ACTION SEND
-  Future<void> _sendQuick(
+  Future<void> _send(
     String text,
     AiChatState aiState,
     AppState appState,
   ) async {
-    aiState.addMessage(text: text, isUser: true);
+    if (text.trim().isEmpty) return;
+
+    aiState.addUserMessage(text);
+    _controller.clear();
     setState(() => _loading = true);
 
-    await _askAi(aiState, appState);
+    final res = await AiService.askAi(
+      messages: aiState.buildChatHistory(),
+      city: appState.cityLabel,
+      lat: appState.lat,
+      lng: appState.lng,
+    );
 
-    setState(() => _loading = false);
-  }
+    List<MapPlace>? places;
 
-  // 🤖 TEK AI İSTEK NOKTASI (ÇOK ÖNEMLİ)
-  Future<void> _askAi(AiChatState aiState, AppState appState) async {
-    try {
-      final res = await AiService.askAi(
-        messages: aiState.buildChatHistory(),
-        city: appState.cityLabel,
-      );
-
-      aiState.addMessage(text: res['reply'] ?? '🤖', isUser: false);
-    } catch (e) {
-      aiState.addMessage(text: '⚠️ AI connection error', isUser: false);
+    if (res['places'] != null) {
+      places = (res['places'] as List)
+          .map((e) => MapPlace.fromJson(e))
+          .toList();
     }
+
+    aiState.addAiMessage(text: res['reply'], places: places);
+    setState(() => _loading = false);
   }
 }

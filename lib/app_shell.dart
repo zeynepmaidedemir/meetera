@@ -7,6 +7,7 @@ import 'screens/home_screen.dart';
 import 'screens/buddy_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/events_screen.dart';
+import 'explore/explore_screen.dart';
 
 // 🤖 AI
 import 'ai/ai_screen.dart';
@@ -32,6 +33,7 @@ class _AppShellState extends State<AppShell> {
     BuddyScreen(),
     CommunityScreen(),
     EventsScreen(),
+    ExploreScreen(),
   ];
 
   @override
@@ -83,6 +85,10 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.event_outlined),
             label: 'Events',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            label: 'Explore', // 👈 YENİ
           ),
         ],
       ),
