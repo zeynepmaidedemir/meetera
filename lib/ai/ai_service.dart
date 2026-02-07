@@ -9,9 +9,7 @@ class AiService {
     double? lng,
   }) async {
     final res = await http.post(
-      // ⬇️ ANDROID EMULATOR
-      Uri.parse('http://10.0.2.2:3000/chat'),
-
+      Uri.parse('http://localhost:3000/chat'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'messages': messages,

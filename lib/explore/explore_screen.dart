@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:geocoding/geocoding.dart';
 
 import 'models/explore_place.dart';
+import 'models/place_status.dart';
 import 'state/explore_state.dart';
 import 'explore_wrap_screen.dart';
+import 'explore_route_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -20,8 +22,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
     zoom: 12,
   );
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ExploreState>().ensureLoaded();
+    });
+  }
+
   // ---------------------
-  // 🧠 Human place naming
+  // 🧠 Human-ish place naming (geocoding limits)
   // ---------------------
   Future<String> _resolvePlaceName(LatLng pos) async {
     try {
@@ -33,10 +43,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
       if (placemarks.isEmpty) return 'Pinned place';
 
       final p = placemarks.first;
-      final candidates = [p.name, p.street, p.subLocality, p.locality];
+
+      // geocoding POI vermez her zaman — insan gibi görünen en iyi alanları seçiyoruz
+      final candidates = <String?>[
+        p.name,
+        p.street,
+        p.subLocality,
+        p.locality,
+        p.administrativeArea,
+      ];
 
       for (final c in candidates) {
-        if (_isValidName(c)) return c!;
+        if (_isValidName(c)) return c!.trim();
       }
     } catch (_) {}
 
@@ -45,10 +63,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   bool _isValidName(String? name) {
     if (name == null) return false;
-    final t = name.trim().toLowerCase();
+    final t = name.trim();
     if (t.isEmpty) return false;
     if (RegExp(r'^\d+$').hasMatch(t)) return false;
-    if (t.contains('unnamed') || t.contains('route')) return false;
+    final low = t.toLowerCase();
+    if (low.contains('unnamed') || low.contains('route')) return false;
+    if (t.length <= 2) return false;
     return true;
   }
 
@@ -72,7 +92,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   // ---------------------
-  // 🧾 Bottom sheet
+  // 🧾 Bottom sheet (edit + status)
   // ---------------------
   void _openPlaceSheet(ExplorePlace place) {
     final explore = context.read<ExploreState>();
@@ -80,15 +100,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) {
         return Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 18,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 46,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 14),
               TextField(
                 controller: controller,
                 decoration: const InputDecoration(
@@ -96,25 +131,44 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   border: OutlineInputBorder(),
                 ),
                 onSubmitted: (v) {
-                  if (v.trim().isEmpty) return;
-                  place.name = v.trim();
+                  final name = v.trim();
+                  if (name.isEmpty) return;
+                  place.name = name;
                   explore.update(place);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Wrap(
-                spacing: 12,
-                children: ExploreStatus.values.map((s) {
-                  return ChoiceChip(
-                    label: Text(s.name),
-                    selected: place.status == s,
-                    onSelected: (_) {
-                      place.status = s;
-                      explore.update(place);
-                      Navigator.pop(context);
-                    },
-                  );
-                }).toList(),
+                spacing: 10,
+                children: [
+                  _chip(
+                    place,
+                    ExploreStatus.wish,
+                    'Wish',
+                    Icons.bookmark_border,
+                  ),
+                  _chip(
+                    place,
+                    ExploreStatus.favorite,
+                    'Favorite',
+                    Icons.favorite,
+                  ),
+                  _chip(
+                    place,
+                    ExploreStatus.visited,
+                    'Visited',
+                    Icons.check_circle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () {
+                  explore.remove(place.id);
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Remove pin'),
               ),
             ],
           ),
@@ -123,8 +177,31 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
+  Widget _chip(
+    ExplorePlace place,
+    ExploreStatus status,
+    String label,
+    IconData icon,
+  ) {
+    final explore = context.read<ExploreState>();
+    final selected = place.status == status;
+
+    return ChoiceChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
+      ),
+      selected: selected,
+      onSelected: (_) {
+        place.status = status;
+        explore.update(place);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   // ---------------------
-  // 🗺️ Markers
+  // 🗺️ Markers (mavi / kırmızı / yeşil)
   // ---------------------
   Set<Marker> _markers(List<ExplorePlace> places) {
     return places.map((p) {
@@ -140,32 +217,87 @@ class _ExploreScreenState extends State<ExploreScreen> {
   double _hue(ExploreStatus status) {
     switch (status) {
       case ExploreStatus.visited:
-        return BitmapDescriptor.hueGreen;
+        return BitmapDescriptor.hueGreen; // ✅ yeşil
       case ExploreStatus.favorite:
-        return BitmapDescriptor.hueRose;
+        return BitmapDescriptor.hueRose; // ✅ kırmızımsı
       case ExploreStatus.wish:
       default:
-        return BitmapDescriptor.hueAzure;
+        return BitmapDescriptor.hueAzure; // ✅ mavi
     }
   }
 
   // ---------------------
-  // 🎨 Wrap
+  // 🎨 Wrap (tek aksiyon)
   // ---------------------
-  void _createWrap() {
+  void _openWrap() {
     final explore = context.read<ExploreState>();
-    final visited = explore.byStatus(ExploreStatus.visited);
-
-    if (visited.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No visited places yet')));
+    if (explore.all.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pin at least 1 place first 📍')),
+      );
       return;
     }
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ExploreWrapScreen(all: explore.all)),
+      MaterialPageRoute(builder: (_) => ExploreWrapScreen(places: explore.all)),
+    );
+  }
+
+  // ---------------------
+  // 🏆 Badges bottom sheet
+  // ---------------------
+  void _openBadges() {
+    final explore = context.read<ExploreState>();
+    final streak = explore.currentStreak;
+    final badges = explore.badges;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Explore Streak 🔥  $streak day${streak == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...badges.map((b) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    b.icon,
+                    color: b.earned ? Colors.green : Colors.grey,
+                  ),
+                  title: Text(b.title),
+                  subtitle: Text(b.subtitle),
+                  trailing: b.earned
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.lock_outline),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openRoute() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ExploreRouteScreen()),
     );
   }
 
@@ -174,21 +306,32 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final explore = context.watch<ExploreState>();
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Explore'),
+        actions: [
+          IconButton(
+            tooltip: 'Wish route',
+            icon: const Icon(Icons.route_outlined),
+            onPressed: _openRoute,
+          ),
+          IconButton(
+            tooltip: 'Badges',
+            icon: const Icon(Icons.emoji_events_outlined),
+            onPressed: _openBadges,
+          ),
+          IconButton(
+            tooltip: 'Create wrap',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: _openWrap,
+          ),
+        ],
+      ),
       body: GoogleMap(
         initialCameraPosition: _initialCamera,
         markers: _markers(explore.all),
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
         onLongPress: _onLongPress,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(top: 16),
-        child: FloatingActionButton.extended(
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Create wrap'),
-          onPressed: _createWrap,
-        ),
       ),
     );
   }

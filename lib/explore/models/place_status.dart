@@ -1,1 +1,1 @@
-enum PlaceStatus { wish, visited, favorite }
+enum ExploreStatus { wish, visited, favorite }
