@@ -29,7 +29,17 @@ class ProfileScreen extends StatelessWidget {
         final data = snapshot.data!.data() as Map<String, dynamic>;
 
         return Scaffold(
-          appBar: AppBar(title: const Text("My Profile")),
+          appBar: AppBar(
+            title: const Text("My Profile"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                },
+              ),
+            ],
+          ),
           body: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -66,7 +76,7 @@ class ProfileScreen extends StatelessWidget {
 
                 Wrap(
                   spacing: 8,
-                  children: (data['interests'] as List<dynamic>)
+                  children: (data['interests'] as List<dynamic>? ?? [])
                       .map((e) => Chip(label: Text(e)))
                       .toList(),
                 ),
