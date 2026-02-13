@@ -58,7 +58,7 @@ class ChatListScreen extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            tileColor: Theme.of(context).colorScheme.surfaceVariant,
+            tileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             leading: CircleAvatar(
               child: Text(
                 buddy.name.substring(0, 1),

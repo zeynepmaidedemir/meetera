@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:meetera/explore/state/explore_state.dart';
 import 'package:meetera/state/ai_chat_state.dart';
 import 'package:provider/provider.dart';
@@ -10,12 +11,15 @@ import 'state/chat_state.dart';
 import 'state/community_state.dart';
 import 'state/event_state.dart';
 
-import 'onboarding/onboarding_gate.dart';
+import 'auth/auth_wrapper.dart'; // 🔥 bunu ekle
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔔 Notification init (SAFE)
+  // 🔥 Firebase initialize
+  await Firebase.initializeApp();
+
+  // 🔔 Notification init
   await NotificationService.init();
 
   runApp(
@@ -40,7 +44,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: OnboardingGate(),
+      home: AuthWrapper(), // 🔥 burayı değiştirdik
     );
   }
 }

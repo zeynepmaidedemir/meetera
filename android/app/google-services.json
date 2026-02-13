@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "792670999466",
+    "project_id": "meetera-88814",
+    "storage_bucket": "meetera-88814.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792670999466:android:63bec8b862f511db23d1d3",
+        "android_client_info": {
+          "package_name": "com.example.erasmus_app_deneme"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "792670999466-m3vtbfa2kqbcmjn4bh1gn0a84ombk9nr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.erasmus_app_deneme",
+            "certificate_hash": "ec402c5f5cabf4f1a24edda1df0455a28afc56c5"
+          }
+        },
+        {
+          "client_id": "792670999466-e80ic9ga9ja4cfr46rgt7r2i926hu1c7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXIHxLsF22i9XBofLlVx1YjhroPPe2-YQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "792670999466-e80ic9ga9ja4cfr46rgt7r2i926hu1c7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "792670999466-krs9m09m3gco4ko5hepln404lsm1q8rm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.erasmusAppDeneme"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792670999466:android:9a55ae157abeb9a523d1d3",
+        "android_client_info": {
+          "package_name": "com.example.meetera"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "792670999466-48t64ius2cijdoa1b5j82rq0p7bjj18v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.meetera",
+            "certificate_hash": "ec402c5f5cabf4f1a24edda1df0455a28afc56c5"
+          }
+        },
+        {
+          "client_id": "792670999466-e80ic9ga9ja4cfr46rgt7r2i926hu1c7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXIHxLsF22i9XBofLlVx1YjhroPPe2-YQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "792670999466-e80ic9ga9ja4cfr46rgt7r2i926hu1c7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "792670999466-krs9m09m3gco4ko5hepln404lsm1q8rm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.erasmusAppDeneme"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

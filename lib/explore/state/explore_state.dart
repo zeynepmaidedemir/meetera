@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:math' as _m;
+import 'dart:math' as m;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -259,8 +259,8 @@ double atan2(double y, double x) => Math._atan2(y, x);
 double _deg2rad(double d) => d * 0.017453292519943295;
 
 class Math {
-  static double _sin(double x) => _m.sin(x);
-  static double _cos(double x) => _m.cos(x);
-  static double _sqrt(double x) => _m.sqrt(x);
-  static double _atan2(double y, double x) => _m.atan2(y, x);
+  static double _sin(double x) => m.sin(x);
+  static double _cos(double x) => m.cos(x);
+  static double _sqrt(double x) => m.sqrt(x);
+  static double _atan2(double y, double x) => m.atan2(y, x);
 }

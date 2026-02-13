@@ -2,7 +2,6 @@ import '../services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:add_2_calendar/add_2_calendar.dart' as cal;
 
 import '../data/event_models.dart';
 import '../state/event_state.dart';
@@ -27,10 +26,7 @@ class EventDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Event Details'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today_outlined),
-            onPressed: _addToCalendar,
-          ),
+          // 🔥 Calendar butonunu kaldırdık
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: _shareEvent,
@@ -106,17 +102,6 @@ class EventDetailScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _addToCalendar() {
-    final calendarEvent = cal.Event(
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      startDate: event.dateTime,
-      endDate: event.dateTime.add(const Duration(hours: 2)),
-    );
-    cal.Add2Calendar.addEvent2Cal(calendarEvent);
   }
 
   void _shareEvent() {

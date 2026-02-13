@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meetera/ai/ai_chat_list_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Screens
 import 'screens/home_screen.dart';
@@ -8,10 +9,9 @@ import 'screens/buddy_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/events_screen.dart';
 import 'explore/explore_screen.dart';
+import 'screens/profile_screen.dart';
 
 // 🤖 AI
-import 'ai/ai_screen.dart';
-import 'ai/ai_context.dart';
 
 // States
 import 'state/app_state.dart';
@@ -34,6 +34,7 @@ class _AppShellState extends State<AppShell> {
     CommunityScreen(),
     EventsScreen(),
     ExploreScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -47,6 +48,18 @@ class _AppShellState extends State<AppShell> {
       body: Stack(
         children: [
           screens[index],
+
+          // 🔴 LOGOUT BUTTON
+          Positioned(
+            top: 40,
+            right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+              },
+            ),
+          ),
 
           // 🤖 DRAGGABLE AI
           Positioned(
@@ -67,6 +80,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
@@ -89,6 +103,10 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.explore_outlined),
             label: 'Explore', // 👈 YENİ
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
           ),
         ],
       ),
