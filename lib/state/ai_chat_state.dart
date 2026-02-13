@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-
 import '../ai/ai_message.dart';
-import '../ai/models/map_place.dart'; // ✅ ÇÖZÜM BURASI
 
 class AiChat {
   final String id;
@@ -43,27 +41,26 @@ class AiChatState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 👤 USER
+  // 👤 User
   void addUserMessage(String text) {
     activeChat?.messages.add(AiMessage(text: text, isUser: true));
     notifyListeners();
   }
 
   // 🤖 AI
-  void addAiMessage({required String text, List<MapPlace>? places}) {
-    activeChat?.messages.add(
-      AiMessage(text: text, isUser: false, places: places),
-    );
+  void addAiMessage({required String text}) {
+    activeChat?.messages.add(AiMessage(text: text, isUser: false));
     notifyListeners();
   }
 
-  /// 🔁 Backend’e gidecek chat geçmişi
+  // 🔁 Backend’e gönderilecek geçmiş
   List<Map<String, String>> buildChatHistory() {
     final chat = activeChat;
     if (chat == null) return [];
 
-    return chat.messages.map((m) {
-      return {'role': m.isUser ? 'user' : 'assistant', 'content': m.text};
-    }).toList();
+    return chat.messages
+        .where((m) => m.isUser)
+        .map((m) => {'role': 'user', 'content': m.text})
+        .toList();
   }
 }

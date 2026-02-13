@@ -5,18 +5,11 @@ class AiService {
   static Future<Map<String, dynamic>> askAi({
     required List<Map<String, String>> messages,
     String? city,
-    double? lat,
-    double? lng,
   }) async {
     final res = await http.post(
-      Uri.parse('http://localhost:3000/chat'),
+      Uri.parse('http://10.0.2.2:3000/chat'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'messages': messages,
-        'city': city,
-        'lat': lat,
-        'lng': lng,
-      }),
+      body: jsonEncode({'messages': messages, 'city': city}),
     );
 
     return jsonDecode(res.body);

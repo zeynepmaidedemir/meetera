@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import '../state/ai_chat_state.dart';
 import '../state/app_state.dart';
 import 'ai_service.dart';
-import 'models/map_place.dart';
-import 'widgets/map_places_card.dart';
 import 'widgets/checklist_card.dart';
 import 'widgets/ai_quick_buttons.dart';
 
@@ -41,10 +39,6 @@ class _AiScreenState extends State<AiScreen> {
               itemCount: chat.messages.length,
               itemBuilder: (_, i) {
                 final m = chat.messages[i];
-
-                if (!m.isUser && m.places != null && m.places!.isNotEmpty) {
-                  return MapPlacesCard(places: m.places!);
-                }
 
                 if (!m.isUser && m.text.toLowerCase().contains('checklist')) {
                   return ErasmusChecklistCard(text: m.text);
@@ -118,19 +112,10 @@ class _AiScreenState extends State<AiScreen> {
     final res = await AiService.askAi(
       messages: aiState.buildChatHistory(),
       city: appState.cityLabel,
-      lat: appState.lat,
-      lng: appState.lng,
     );
 
-    List<MapPlace>? places;
+    aiState.addAiMessage(text: res['reply'] ?? 'Sure! Let me help you ✨');
 
-    if (res['places'] != null) {
-      places = (res['places'] as List)
-          .map((e) => MapPlace.fromJson(e))
-          .toList();
-    }
-
-    aiState.addAiMessage(text: res['reply'], places: places);
     setState(() => _loading = false);
   }
 }

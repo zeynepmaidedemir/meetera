@@ -29,9 +29,20 @@ class ExploreRouteScreen extends StatelessWidget {
 
     final route = explore.buildWishRoute();
 
-    return Scaffold(
+   return Scaffold(
       appBar: AppBar(
-        title: const Text('Wish Route'),
+-        title: const Text('Wish Route'),
+-        title: const Text('Walking (default)'),
++        title: Column(
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: const [
++            Text('Wish Route'),
++            Text(
++              'Walking (default)',
++              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
++            ),
++          ],
++        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
