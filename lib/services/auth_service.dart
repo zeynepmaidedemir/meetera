@@ -91,20 +91,23 @@ class AuthService {
 
   // 🔥 Firestore user oluşturma
   Future<void> _createUserIfNotExists(User user) async {
-    final doc = _firestore.collection('users').doc(user.uid);
-    final snapshot = await doc.get();
+    final docRef = _firestore.collection('users').doc(user.uid);
+    final snapshot = await docRef.get();
 
     if (!snapshot.exists) {
-      await doc.set({
+      await docRef.set({
         'uid': user.uid,
-        'email': user.email,
+        'email': user.email ?? '',
         'displayName': user.displayName ?? '',
         'photoUrl': user.photoURL ?? '',
         'bio': '',
         'city': '',
         'country': '',
+        'countryCode': '',
+        'cityId': '',
         'interests': [],
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     }
   }

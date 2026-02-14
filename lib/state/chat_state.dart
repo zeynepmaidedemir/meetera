@@ -1,27 +1,39 @@
-  import 'package:flutter/material.dart';
-  import '../data/chat_models.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-  class ChatState extends ChangeNotifier {
-    // threadId -> messages
-    final Map<String, List<ChatMessage>> _messages = {};
+class ChatState extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-    /// 🔁 THREAD OLUŞTUR / VARSA AL
-    String getOrCreateThread({required String userId, required String buddyId}) {
-      // deterministik thread id
-      final ids = [userId, buddyId]..sort();
-      final threadId = ids.join('_');
-
-      _messages.putIfAbsent(threadId, () => []);
-      return threadId;
-    }
-
-    List<ChatMessage> messagesFor(String threadId) {
-      return _messages[threadId] ?? [];
-    }
-
-    void sendMessage({required String threadId, required ChatMessage message}) {
-      _messages.putIfAbsent(threadId, () => []);
-      _messages[threadId]!.add(message);
-      notifyListeners();
-    }
+  String buildConversationId(String otherUserId) {
+    final currentUser = FirebaseAuth.instance.currentUser!.uid;
+    final users = [currentUser, otherUserId]..sort();
+    return users.join('_');
   }
+
+  Stream<QuerySnapshot> messagesStream(String conversationId) {
+    return _firestore
+        .collection('chats')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('createdAt')
+        .snapshots();
+  }
+
+  Future<void> sendMessage({
+    required String conversationId,
+    required String text,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+
+    await _firestore
+        .collection('chats')
+        .doc(conversationId)
+        .collection('messages')
+        .add({
+      'senderId': currentUser.uid,
+      'text': text,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+}

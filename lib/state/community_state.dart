@@ -1,96 +1,82 @@
-  import 'package:flutter/material.dart';
-  import '../data/community_models.dart';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
 
-  class CommunityState extends ChangeNotifier {
-    final List<CommunityPost> _posts = [];
-    final List<CommunityComment> _comments = [];
+class CommunityState extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-    // =====================
-    // 🔹 AI & dış erişim (READ-ONLY)
-    // =====================
-    List<CommunityPost> get posts => List.unmodifiable(_posts);
+  List<QueryDocumentSnapshot> _posts = [];
+  List<QueryDocumentSnapshot> get posts => _posts;
 
-    // =====================
-    // POSTS
-    // =====================
-    List<CommunityPost> postsForCity(String city) {
-      return _posts.where((p) => p.city == city).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  // 📡 Realtime Feed
+  void loadPosts(String cityId) {
+    _firestore
+        .collection('posts')
+        .where('cityId', isEqualTo: cityId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+          _posts = snapshot.docs;
+          notifyListeners();
+        });
+  }
+
+  // 🖼 Upload Image
+  Future<String> _uploadImage(File image, String postId) async {
+    final ref = _storage.ref().child("post_images/$postId.jpg");
+    await ref.putFile(image);
+    return await ref.getDownloadURL();
+  }
+
+  // ✍️ Create Post (image optional)
+  Future<void> createPost({
+    required String cityId,
+    required String text,
+    File? imageFile,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final postId = const Uuid().v4();
+
+    String? imageUrl;
+
+    if (imageFile != null) {
+      imageUrl = await _uploadImage(imageFile, postId);
     }
 
-    void createPost({
-      required String city,
-      required String authorId,
-      required String authorName,
-      required String text,
-      String? imageUrl,
-    }) {
-      _posts.add(
-        CommunityPost(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          city: city,
-          authorId: authorId,
-          authorName: authorName,
-          text: text,
-          imageUrl: imageUrl,
-          createdAt: DateTime.now(),
-        ),
-      );
-      notifyListeners();
-    }
+    await _firestore.collection('posts').doc(postId).set({
+      'cityId': cityId,
+      'authorId': user.uid,
+      'authorName': user.displayName ?? 'User',
+      'text': text,
+      'imageUrl': imageUrl,
+      'likedBy': [],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 
-    void deletePost(String postId, String userId) {
-      _posts.removeWhere((p) => p.id == postId && p.authorId == userId);
-      _comments.removeWhere((c) => c.postId == postId);
-      notifyListeners();
-    }
+  // ❤️ Toggle Like
+  Future<void> toggleLike(String postId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    void toggleLike(String postId, String userId) {
-      final index = _posts.indexWhere((p) => p.id == postId);
-      if (index == -1) return;
+    final ref = _firestore.collection('posts').doc(postId);
+    final doc = await ref.get();
+    final likedBy = List<String>.from(doc['likedBy'] ?? []);
 
-      final post = _posts[index];
-      final updatedLikes = Set<String>.from(post.likedBy);
-
-      updatedLikes.contains(userId)
-          ? updatedLikes.remove(userId)
-          : updatedLikes.add(userId);
-
-      _posts[index] = post.copyWith(likedBy: updatedLikes);
-      notifyListeners();
-    }
-
-    // =====================
-    // COMMENTS
-    // =====================
-    List<CommunityComment> commentsForPost(String postId) {
-      return _comments.where((c) => c.postId == postId).toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    }
-
-    void addComment({
-      required String postId,
-      required String authorId,
-      required String authorName,
-      required String text,
-    }) {
-      _comments.add(
-        CommunityComment(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          postId: postId,
-          authorId: authorId,
-          authorName: authorName,
-          text: text,
-          createdAt: DateTime.now(),
-        ),
-      );
-
-      final index = _posts.indexWhere((p) => p.id == postId);
-      if (index == -1) return;
-
-      final post = _posts[index];
-      _posts[index] = post.copyWith(commentCount: post.commentCount + 1);
-
-      notifyListeners();
+    if (likedBy.contains(user.uid)) {
+      await ref.update({
+        'likedBy': FieldValue.arrayRemove([user.uid]),
+      });
+    } else {
+      await ref.update({
+        'likedBy': FieldValue.arrayUnion([user.uid]),
+      });
     }
   }
+}

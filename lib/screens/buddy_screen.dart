@@ -1,125 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import '../state/buddy_state.dart';
 import '../state/app_state.dart';
-import '../data/buddy_data.dart';
-import 'buddy_card.dart';
+import '../state/chat_state.dart';
+import '../models/buddy_user.dart';
+import 'chat_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class BuddyScreen extends StatelessWidget {
+class BuddyScreen extends StatefulWidget {
   const BuddyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    final city = appState.cityLabel.split(',').first;
-    final interests = appState.interests;
-
-    // 🎯 CITY + INTEREST FILTER
-    final matchedBuddies =
-        mockBuddies.where((b) {
-          final sameCity = b.city == city;
-          final commonInterest = b.interests.any(interests.contains);
-          return sameCity && commonInterest;
-        }).toList()..sort((a, b) {
-          final aRatio = calculateMatchRatio(interests, a.interests);
-          final bRatio = calculateMatchRatio(interests, b.interests);
-          return bRatio.compareTo(aRatio); // 🔥 yüksekten düşüğe
-        });
-
-    final connected = matchedBuddies
-        .where((b) => appState.isConnected(b.id))
-        .toList();
-
-    final discover = matchedBuddies
-        .where((b) => !appState.isConnected(b.id))
-        .toList();
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Buddy')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: matchedBuddies.isEmpty
-            ? const Center(
-                child: Text(
-                  'No buddies found yet 🤍\nTry updating your interests',
-                  textAlign: TextAlign.center,
-                ),
-              )
-            : ListView(
-                children: [
-                  // 🤝 CONNECTED
-                  if (connected.isNotEmpty) ...[
-                    const _SectionTitle('Connected'),
-                    const SizedBox(height: 8),
-                    ...connected.map((b) => BuddyCard(buddy: b)),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // 🔍 DISCOVER
-                  if (discover.isNotEmpty) ...[
-                    const _SectionTitle('Discover'),
-                    const SizedBox(height: 8),
-                    ...discover.map((b) => BuddyCard(buddy: b)),
-                  ],
-
-                  // 🎉 ALL CONNECTED STATE
-                  if (discover.isEmpty && connected.isNotEmpty) ...[
-                    const SizedBox(height: 40),
-                    const Center(
-                      child: Column(
-                        children: [
-                          Text('🎉', style: TextStyle(fontSize: 48)),
-                          SizedBox(height: 12),
-                          Text(
-                            "You're all connected!",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'You’ve connected with everyone\nwho matches your interests.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-      ),
-    );
-  }
+  State<BuddyScreen> createState() => _BuddyScreenState();
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-
-  const _SectionTitle(this.title);
+class _BuddyScreenState extends State<BuddyScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final cityId = context.read<AppState>().cityId;
+    if (cityId != null) {
+      context.read<BuddyState>().loadUsersByCity(cityId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(
-        context,
-      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    final buddyState = context.watch<BuddyState>();
+    final appState = context.watch<AppState>();
+    final chatState = context.read<ChatState>();
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    final myInterests = appState.interests.toList();
+
+    final users = buddyState.users;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Buddies")),
+      body: users.isEmpty
+          ? const Center(child: Text("No users in this city yet 👀"))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: users.length,
+              itemBuilder: (_, i) {
+                final user = users[i];
+
+                final match = buddyState.matchPercent(
+                  myInterests: myInterests,
+                  otherInterests: user.interests,
+                );
+
+                final percent = (match * 100).round();
+                final isConnected = buddyState.isConnected(user.uid);
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: user.photoUrl.isNotEmpty
+                                  ? NetworkImage(user.photoUrl)
+                                  : null,
+                              child: user.photoUrl.isEmpty
+                                  ? Text(user.displayName[0].toUpperCase())
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(user.displayName,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium),
+                            ),
+                            Text("$percent%"),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(user.bio),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: isConnected
+                                    ? null
+                                    : () => buddyState.connect(user.uid),
+                                child:
+                                    Text(isConnected ? "Connected" : "Connect"),
+                              ),
+                            ),
+                            if (isConnected) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.chat),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        otherUserId: user.uid,
+                                        otherUserName: user.displayName,
+                                      ),
+                                    ),
+                                  );
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        otherUserId: user.uid,
+                                        otherUserName: user.displayName,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            ]
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
-}
-
-// 🎯 MATCH CALCULATION (SIRALAMA + CARD İÇİN)
-double calculateMatchRatio(
-  Set<String> userInterests,
-  List<String> buddyInterests,
-) {
-  if (userInterests.isEmpty || buddyInterests.isEmpty) return 0.0;
-
-  final commonCount = buddyInterests
-      .where((i) => userInterests.contains(i))
-      .length;
-
-  return commonCount / buddyInterests.length;
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../state/event_state.dart';
 import '../state/app_state.dart';
 import 'create_event_sheet.dart';
 import 'event_detail_screen.dart';
+import 'event_map_screen.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -31,8 +34,26 @@ class _EventsScreenState extends State<EventsScreen> {
         ? []
         : context.watch<EventState>().eventsForCity(cityId);
 
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
-      appBar: AppBar(title: Text("Events in $city"), centerTitle: true),
+      appBar: AppBar(
+        title: Text("Events in $city"),
+        centerTitle: true,
+        actions: [
+          if (events.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.map_outlined),
+              tooltip: "View on map",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EventMapScreen()),
+                );
+              },
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text("Create"),
@@ -59,11 +80,13 @@ class _EventsScreenState extends State<EventsScreen> {
 
                 return GestureDetector(
                   onTap: () {
+                    if (userId == null) return;
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
-                            EventDetailScreen(event: e, userId: 'me'),
+                            EventDetailScreen(event: e, userId: userId),
                       ),
                     );
                   },
@@ -89,16 +112,13 @@ class _EventsScreenState extends State<EventsScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-
                           Text(
                             e.description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: Colors.white70),
                           ),
-
                           const SizedBox(height: 16),
-
                           Row(
                             children: [
                               const Icon(

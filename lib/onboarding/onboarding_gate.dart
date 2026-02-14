@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-import '../screens/home_screen.dart';
-import 'city_picker_screen.dart';
-import 'interest_picker_screen.dart';
+import '../onboarding/city_picker_screen.dart';
+import '../onboarding/interest_picker_screen.dart';
+import '../app_shell.dart';
 
 class OnboardingGate extends StatefulWidget {
   const OnboardingGate({super.key});
@@ -18,7 +18,8 @@ class _OnboardingGateState extends State<OnboardingGate> {
   void initState() {
     super.initState();
 
-    Future.microtask(() {
+    // 🔥 Profile load AFTER build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppState>().loadUserProfile();
     });
   }
@@ -27,18 +28,22 @@ class _OnboardingGateState extends State<OnboardingGate> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
+    // 🔥 Profile loading
     if (!appState.profileLoaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // 🔥 City not selected
     if (!appState.hasCity) {
       return const CityPickerScreen();
     }
 
+    // 🔥 Interests not selected
     if (!appState.hasInterests) {
       return const InterestPickerScreen();
     }
 
-    return const HomeScreen();
+    // 🔥 All good → main app
+    return const AppShell();
   }
 }

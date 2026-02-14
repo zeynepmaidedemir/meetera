@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:add_2_calendar/add_2_calendar.dart' as calendar;
+
 import '../data/event_models.dart';
 import '../state/event_state.dart';
 import '../services/notification_service.dart';
@@ -14,6 +16,24 @@ class EventDetailScreen extends StatelessWidget {
     required this.event,
     required this.userId,
   });
+
+  void _addToCalendar(BuildContext context) {
+    final calendarEvent = calendar.Event(
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      startDate: event.dateTime,
+      endDate: event.dateTime.add(const Duration(hours: 2)),
+      iosParams: const calendar.IOSParams(reminder: Duration(minutes: 30)),
+      androidParams: const calendar.AndroidParams(),
+    );
+
+    calendar.Add2Calendar.addEvent2Cal(calendarEvent);
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Added to calendar 📅")));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,11 +69,8 @@ class EventDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(event.title, style: Theme.of(context).textTheme.headlineSmall),
-
             const SizedBox(height: 12),
-
             Text(event.description, style: const TextStyle(fontSize: 16)),
-
             const SizedBox(height: 20),
 
             Row(
@@ -61,7 +78,8 @@ class EventDetailScreen extends StatelessWidget {
                 const Icon(Icons.calendar_today),
                 const SizedBox(width: 8),
                 Text(
-                  '${event.dateTime.day}.${event.dateTime.month}.${event.dateTime.year} – ${event.dateTime.hour}:${event.dateTime.minute.toString().padLeft(2, '0')}',
+                  '${event.dateTime.day}.${event.dateTime.month}.${event.dateTime.year} – '
+                  '${event.dateTime.hour}:${event.dateTime.minute.toString().padLeft(2, '0')}',
                 ),
               ],
             ),
@@ -72,12 +90,13 @@ class EventDetailScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.location_on),
                 const SizedBox(width: 8),
-                Text(event.location),
+                Expanded(child: Text(event.location)),
               ],
             ),
 
             const Spacer(),
 
+            // 🎯 Interested & Going
             Row(
               children: [
                 Expanded(
@@ -103,6 +122,19 @@ class EventDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
+            // 📅 Add to Calendar
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.event_available),
+                label: const Text("Add to Calendar"),
+                onPressed: () => _addToCalendar(context),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // 🔔 Local Reminder
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -118,6 +150,10 @@ class EventDetailScreen extends StatelessWidget {
                     title: 'Upcoming Event',
                     body: event.title,
                     scheduledDate: reminderTime,
+                  );
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Reminder scheduled 🔔")),
                   );
                 },
               ),

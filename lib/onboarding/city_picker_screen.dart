@@ -86,17 +86,6 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
       countryCode: countryCode,
       cityId: cityId,
     );
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    if (uid != null) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'city': city,
-        'country': country,
-        'countryCode': countryCode,
-        'cityId': cityId,
-      });
-    }
   }
 
   @override

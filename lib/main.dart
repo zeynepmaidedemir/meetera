@@ -10,6 +10,7 @@ import 'state/app_state.dart';
 import 'state/chat_state.dart';
 import 'state/community_state.dart';
 import 'state/event_state.dart';
+import 'state/buddy_state.dart';
 
 import 'auth/auth_wrapper.dart'; // 🔥 bunu ekle
 
@@ -31,6 +32,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => EventState()),
         ChangeNotifierProvider(create: (_) => AiChatState()),
         ChangeNotifierProvider(create: (_) => ExploreState()),
+        ChangeNotifierProvider(create: (_) => BuddyState()),
       ],
       child: const MyApp(),
     ),

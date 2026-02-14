@@ -1,30 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/buddy_data.dart';
+import '../state/buddy_state.dart';
 import '../state/app_state.dart';
-import '../state/chat_state.dart';
 import 'chat_screen.dart';
+import '../models/buddy_user.dart';
 
 class BuddyCard extends StatelessWidget {
-  final Buddy buddy;
+  final BuddyUser buddy;
 
   const BuddyCard({super.key, required this.buddy});
 
   @override
   Widget build(BuildContext context) {
+    final buddyState = context.watch<BuddyState>();
     final appState = context.watch<AppState>();
-    final chatState = context.read<ChatState>();
 
-    final userInterests = appState.interests;
-    final isConnected = appState.isConnected(buddy.id);
+    final myInterests = appState.interests.toList();
 
-    // 🎯 MATCH CALCULATION
-    final commonCount = buddy.interests.where(userInterests.contains).length;
-    final matchRatio = buddy.interests.isEmpty
-        ? 0.0
-        : commonCount / buddy.interests.length;
-    final matchPercent = (matchRatio * 100).round();
+    final match = buddyState.matchPercent(
+      myInterests: myInterests,
+      otherInterests: buddy.interests,
+    );
+
+    final isConnected = buddyState.isConnected(buddy.uid);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -36,17 +35,14 @@ class BuddyCard extends StatelessWidget {
           children: [
             // HEADER
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  radius: 22,
-                  child: Text(
-                    buddy.name.substring(0, 1),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
+                  backgroundImage: buddy.photoUrl.isNotEmpty
+                      ? NetworkImage(buddy.photoUrl)
+                      : null,
+                  child: buddy.photoUrl.isEmpty
+                      ? Text(buddy.displayName[0].toUpperCase())
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -54,103 +50,53 @@ class BuddyCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        buddy.name,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        buddy.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        buddy.city,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 6),
-
-                      // 🎯 MATCH BAR
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: matchRatio,
-                                minHeight: 6,
-                                backgroundColor: Colors.grey.withOpacity(0.2),
-                                color: matchPercent >= 70
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$matchPercent%',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 4),
+                      Text("$match% match"),
                     ],
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // BIO
             Text(buddy.bio),
 
             const SizedBox(height: 10),
 
-            // INTERESTS
             Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: buddy.interests
-                  .map(
-                    (i) => Chip(
-                      label: Text(i),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  )
-                  .toList(),
+              spacing: 6,
+              children:
+                  buddy.interests.map((i) => Chip(label: Text(i))).toList(),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
-            // ACTIONS
             Row(
               children: [
-                // 🤝 CONNECT
                 Expanded(
-                  child: FilledButton.icon(
-                    icon: Icon(isConnected ? Icons.check : Icons.handshake),
-                    label: Text(isConnected ? 'Connected' : 'Connect'),
+                  child: ElevatedButton(
                     onPressed: isConnected
                         ? null
-                        : () {
-                            context.read<AppState>().connectBuddy(buddy.id);
-                          },
+                        : () => buddyState.connect(buddy.uid),
+                    child: Text(isConnected ? "Connected" : "Connect"),
                   ),
                 ),
-
-                // 💬 MESSAGE (SADECE CONNECTED)
                 if (isConnected) ...[
                   const SizedBox(width: 12),
                   IconButton(
                     icon: const Icon(Icons.chat_bubble_outline),
-                    tooltip: 'Message',
                     onPressed: () {
-                      final threadId = chatState.getOrCreateThread(
-                        userId: 'me',
-                        buddyId: buddy.id,
-                      );
-
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              ChatScreen(buddy: buddy, threadId: threadId),
+                          builder: (_) => ChatScreen(
+                            otherUserId: buddy.uid,
+                            otherUserName: buddy.displayName,
+                          ),
                         ),
                       );
                     },

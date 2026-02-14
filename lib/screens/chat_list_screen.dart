@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../state/chat_state.dart';
-import '../state/app_state.dart';
-import '../data/buddy_data.dart';
+import '../state/buddy_state.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
@@ -11,73 +11,88 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chatState = context.watch<ChatState>();
-    final appState = context.watch<AppState>();
+    final buddyState = context.watch<BuddyState>();
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-    // Sadece connected buddy'ler
-    final connectedBuddies = mockBuddies
-        .where((b) => appState.isConnected(b.id))
-        .toList();
-
-    if (connectedBuddies.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Chats')),
-        body: const Center(
-          child: Text(
-            'No chats yet 💬\nConnect with buddies to start chatting',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
+    if (currentUser == null) {
+      return const Scaffold(body: Center(child: Text("Not logged in")));
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chats')),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: connectedBuddies.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) {
-          final buddy = connectedBuddies[i];
+      appBar: AppBar(title: const Text("Chats")),
+      body: StreamBuilder(
+        stream: FirebaseFirestore.instance
+            .collection('connections')
+            .where('participants', arrayContains: currentUser.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          final threadId = chatState.getOrCreateThread(
-            userId: 'me',
-            buddyId: buddy.id,
-          );
+          final connections = snapshot.data!.docs;
 
-          final messages = chatState.messagesFor(threadId);
-          final lastMessage = messages.isNotEmpty
-              ? messages.last.text
-              : 'Say hi 👋';
-
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            tileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            leading: CircleAvatar(
+          if (connections.isEmpty) {
+            return const Center(
               child: Text(
-                buddy.name.substring(0, 1),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                "No chats yet 💬\nConnect with buddies to start chatting",
+                textAlign: TextAlign.center,
               ),
-            ),
-            title: Text(buddy.name),
-            subtitle: Text(
-              lastMessage,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(buddy: buddy, threadId: threadId),
-                ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: connections.length,
+            itemBuilder: (_, i) {
+              final data = connections[i].data();
+              final participants = List<String>.from(data['participants']);
+
+              final otherUserId = participants.firstWhere(
+                (id) => id != currentUser.uid,
+              );
+
+              return FutureBuilder(
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(otherUserId)
+                    .get(),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
+                    return const SizedBox();
+                  }
+
+                  final userData =
+                      userSnapshot.data!.data() as Map<String, dynamic>;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage:
+                          userData['photoUrl'] != null &&
+                              userData['photoUrl'].isNotEmpty
+                          ? NetworkImage(userData['photoUrl'])
+                          : null,
+                      child:
+                          userData['photoUrl'] == null ||
+                              userData['photoUrl'].isEmpty
+                          ? Text(userData['displayName'][0].toUpperCase())
+                          : null,
+                    ),
+                    title: Text(userData['displayName'] ?? "User"),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            otherUserId: otherUserId,
+                            otherUserName: userData['displayName'] ?? "User",
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               );
             },
           );
