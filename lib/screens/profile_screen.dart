@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'edit_profile_screen.dart';
 
+import 'package:provider/provider.dart';
+import '../state/app_state.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -36,6 +39,7 @@ class ProfileScreen extends StatelessWidget {
                 icon: const Icon(Icons.logout),
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
+                  context.read<AppState>().reset();
                 },
               ),
             ],

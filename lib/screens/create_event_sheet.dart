@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../state/event_state.dart';
+import '../state/app_state.dart';
 
 class CreateEventSheet extends StatefulWidget {
   const CreateEventSheet({super.key});
@@ -28,7 +31,8 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
   @override
   Widget build(BuildContext context) {
     final eventState = context.read<EventState>();
-    final userId = 'me';
+    final appState = context.read<AppState>();
+    final user = FirebaseAuth.instance.currentUser;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -41,12 +45,20 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Text(
+              "Create Event",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+
+            // TITLE
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Event title'),
             ),
             const SizedBox(height: 12),
 
+            // DESCRIPTION
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(labelText: 'Description'),
@@ -54,6 +66,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
             ),
             const SizedBox(height: 12),
 
+            // LOCATION
             TextField(
               controller: _locationController,
               decoration: const InputDecoration(labelText: 'Location'),
@@ -106,33 +119,45 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
 
             const SizedBox(height: 24),
 
-            FilledButton(
-              onPressed: () {
-                final title = _titleController.text.trim();
-                final description = _descriptionController.text.trim();
-                final location = _locationController.text.trim();
+            // CREATE BUTTON
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  final title = _titleController.text.trim();
+                  final description = _descriptionController.text.trim();
+                  final location = _locationController.text.trim();
 
-                if (title.isEmpty || description.isEmpty) return;
+                  if (title.isEmpty ||
+                      description.isEmpty ||
+                      location.isEmpty ||
+                      user == null ||
+                      appState.cityId == null) {
+                    return;
+                  }
 
-                final dateTime = DateTime(
-                  _selectedDate.year,
-                  _selectedDate.month,
-                  _selectedDate.day,
-                  _selectedTime.hour,
-                  _selectedTime.minute,
-                );
+                  final dateTime = DateTime(
+                    _selectedDate.year,
+                    _selectedDate.month,
+                    _selectedDate.day,
+                    _selectedTime.hour,
+                    _selectedTime.minute,
+                  );
 
-                eventState.addEvent(
-                  title: title,
-                  description: description,
-                  location: location,
-                  dateTime: dateTime,
-                  creatorId: userId,
-                );
+                  await eventState.addEvent(
+                    cityId: appState.cityId!,
+                    title: title,
+                    description: description,
+                    location: location,
+                    dateTime: dateTime,
+                    creatorId: user.uid,
+                    creatorName: user.displayName ?? user.email ?? "User",
+                  );
 
-                Navigator.pop(context);
-              },
-              child: const Text('Create event'),
+                  Navigator.pop(context);
+                },
+                child: const Text('Create event'),
+              ),
             ),
           ],
         ),

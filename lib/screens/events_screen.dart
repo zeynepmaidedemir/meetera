@@ -1,183 +1,139 @@
-  import 'package:flutter/material.dart';
-  import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../state/event_state.dart';
+import '../state/app_state.dart';
+import 'create_event_sheet.dart';
+import 'event_detail_screen.dart';
 
-  import '../state/event_state.dart';
-  import '../state/app_state.dart';
-  import 'create_event_sheet.dart';
-  import 'event_map_screen.dart';
-  import 'event_detail_screen.dart';
+class EventsScreen extends StatefulWidget {
+  const EventsScreen({super.key});
 
-  class EventsScreen extends StatelessWidget {
-    const EventsScreen({super.key});
+  @override
+  State<EventsScreen> createState() => _EventsScreenState();
+}
 
-    @override
-    Widget build(BuildContext context) {
-      final city = context.watch<AppState>().cityLabel.split(',').first;
-      final events = context.watch<EventState>().eventsForCity(city);
-      final userId = 'me';
+class _EventsScreenState extends State<EventsScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-      return Scaffold(
-        appBar: AppBar(
-          title: Text('Events in $city'),
-          actions: [
-            // 🗺️ MAP VIEW
-            IconButton(
-              icon: const Icon(Icons.map_outlined),
-              tooltip: 'View events on map',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EventMapScreen()),
-                );
-              },
-            ),
-          ],
-        ),
+    final cityId = context.read<AppState>().cityId;
+    if (cityId != null) {
+      context.read<EventState>().listenToEvents(cityId);
+    }
+  }
 
-        // ➕ CREATE EVENT
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => const CreateEventSheet(),
-            );
-          },
-          child: const Icon(Icons.add),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    final city = context.watch<AppState>().city ?? '';
+    final cityId = context.watch<AppState>().cityId;
+    final events = cityId == null
+        ? []
+        : context.watch<EventState>().eventsForCity(cityId);
 
-        // 📋 EVENT LIST
-        body: events.isEmpty
-            ? const Center(child: Text('No events yet 🎉'))
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: events.length,
-                itemBuilder: (_, i) {
-                  final e = events[i];
-                  final eventState = context.read<EventState>();
+    return Scaffold(
+      appBar: AppBar(title: Text("Events in $city"), centerTitle: true),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text("Create"),
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => const CreateEventSheet(),
+          );
+        },
+      ),
+      body: events.isEmpty
+          ? const Center(
+              child: Text(
+                "No events yet 🎉\nBe the first to create one!",
+                textAlign: TextAlign.center,
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: events.length,
+              itemBuilder: (_, i) {
+                final e = events[i];
 
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              EventDetailScreen(event: e, userId: userId),
-                        ),
-                      );
-                    },
-                    child: Card(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EventDetailScreen(event: e, userId: 'me'),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // HEADER
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    e.title,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
-                                  ),
-                                ),
-                                if (e.creatorId == userId)
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    tooltip: 'Delete event',
-                                    onPressed: () {
-                                      eventState.deleteEvent(e.id, userId);
-                                    },
-                                  ),
-                              ],
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade400, Colors.blue.shade700],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            e.title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
+                          ),
+                          const SizedBox(height: 8),
 
-                            // 🖼️ IMAGE (OPTIONAL)
-                            if (e.imageUrl != null) ...[
-                              const SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  e.imageUrl!,
-                                  height: 180,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
+                          Text(
+                            e.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${e.dateTime.day}.${e.dateTime.month}.${e.dateTime.year}",
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              const SizedBox(width: 16),
+                              const Icon(
+                                Icons.location_on,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  e.location,
+                                  style: const TextStyle(color: Colors.white),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
-
-                            const SizedBox(height: 8),
-
-                            // DESCRIPTION
-                            Text(e.description),
-
-                            const SizedBox(height: 8),
-
-                            // META
-                            Text(
-                              '📍 ${e.location}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            Text(
-                              '🕒 ${_formatDateTime(e.dateTime)}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // ACTIONS
-                            Row(
-                              children: [
-                                TextButton.icon(
-                                  icon: Icon(
-                                    eventState.isInterested(e.id, userId)
-                                        ? Icons.star
-                                        : Icons.star_border,
-                                  ),
-                                  label: Text(
-                                    'Interested (${e.interestedUserIds.length})',
-                                  ),
-                                  onPressed: () {
-                                    eventState.toggleInterested(e.id, userId);
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton.icon(
-                                  icon: Icon(
-                                    eventState.isGoing(e.id, userId)
-                                        ? Icons.check_circle
-                                        : Icons.check_circle_outline,
-                                  ),
-                                  label: Text('Going (${e.goingUserIds.length})'),
-                                  onPressed: () {
-                                    eventState.toggleGoing(e.id, userId);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
-      );
-    }
-
-    // 🕒 DATE FORMATTER
-    static String _formatDateTime(DateTime dt) {
-      final date =
-          '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-      final time =
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-      return '$date – $time';
-    }
+                  ),
+                );
+              },
+            ),
+    );
   }
+}

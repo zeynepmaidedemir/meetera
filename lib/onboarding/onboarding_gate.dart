@@ -1,29 +1,44 @@
-  import 'package:flutter/material.dart';
-  import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-  import '../state/app_state.dart';
-  import 'city_picker_screen.dart';
-  import 'interest_picker_screen.dart';
-  import '../app_shell.dart';
+import '../state/app_state.dart';
+import '../screens/home_screen.dart';
+import 'city_picker_screen.dart';
+import 'interest_picker_screen.dart';
 
-  class OnboardingGate extends StatelessWidget {
-    const OnboardingGate({super.key});
+class OnboardingGate extends StatefulWidget {
+  const OnboardingGate({super.key});
 
-    @override
-    Widget build(BuildContext context) {
-      final appState = context.watch<AppState>();
+  @override
+  State<OnboardingGate> createState() => _OnboardingGateState();
+}
 
-      // 1️⃣ City seçilmemişse
-      if (!appState.hasCity) {
-        return const CityPickerScreen();
-      }
+class _OnboardingGateState extends State<OnboardingGate> {
+  @override
+  void initState() {
+    super.initState();
 
-      // 2️⃣ Interest tamamlanmamışsa
-      if (!appState.interestsCompleted) {
-        return const InterestPickerScreen();
-      }
-
-      // 3️⃣ Her şey tamam → App
-      return const AppShell();
-    }
+    Future.microtask(() {
+      context.read<AppState>().loadUserProfile();
+    });
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+
+    if (!appState.profileLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!appState.hasCity) {
+      return const CityPickerScreen();
+    }
+
+    if (!appState.hasInterests) {
+      return const InterestPickerScreen();
+    }
+
+    return const HomeScreen();
+  }
+}

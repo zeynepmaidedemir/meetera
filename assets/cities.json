@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Poland",
+    "code": "PL",
+    "cities": [
+      { "name": "Warsaw" },
+      { "name": "Krakow" },
+      { "name": "Lublin" },
+      { "name": "Wroclaw" }
+    ]
+  }
+]

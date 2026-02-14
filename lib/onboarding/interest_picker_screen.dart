@@ -6,12 +6,16 @@ class InterestPickerScreen extends StatelessWidget {
   const InterestPickerScreen({super.key});
 
   static const interests = [
-    {'key': 'Books', 'label': '📚 Books'},
-    {'key': 'Music', 'label': '🎵 Music'},
-    {'key': 'Movies', 'label': '🎬 Movies'},
-    {'key': 'Coffee', 'label': '☕ Coffee'},
-    {'key': 'Walking', 'label': '🚶 Walking'},
-    {'key': 'Travel', 'label': '✈️ Travel'},
+    "Travel",
+    "Food",
+    "Coding",
+    "Music",
+    "Photography",
+    "Gym",
+    "Gaming",
+    "Hiking",
+    "Art",
+    "Movies",
   ];
 
   @override
@@ -19,42 +23,41 @@ class InterestPickerScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your interests')),
+      appBar: AppBar(
+        title: const Text("Select your interests"),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Text(
-              'These help us match you with buddies 👋',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: interests.map((i) {
-                  final key = i['key']!;
-                  final label = i['label']!;
-                  final selected = appState.interests.contains(key);
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: interests.map((interest) {
+                final selected = appState.interests.contains(interest);
 
-                  return FilterChip(
-                    label: Text(label),
-                    selected: selected,
-                    onSelected: (_) {
-                      appState.toggleInterest(key); // 🔥 SADECE KEY
-                    },
-                  );
-                }).toList(),
-              ),
+                return FilterChip(
+                  label: Text(interest),
+                  selected: selected,
+                  onSelected: (_) {
+                    context.read<AppState>().toggleInterest(interest);
+                  },
+                );
+              }).toList(),
             ),
+
+            const Spacer(),
+
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () {
-                  appState.completeInterests();
-                },
-                child: const Text('Continue'),
+                onPressed: appState.interests.isEmpty
+                    ? null
+                    : () {
+                        context.read<AppState>().completeInterests();
+                      },
+                child: const Text("Continue"),
               ),
             ),
           ],

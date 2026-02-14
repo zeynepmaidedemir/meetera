@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,8 +10,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final AuthService _authService = AuthService();
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -18,27 +17,61 @@ class _LoginScreenState extends State<LoginScreen> {
   bool loading = false;
 
   Future<void> _submit() async {
-    setState(() => loading = true);
-
     try {
+      setState(() => loading = true);
+
       if (isLogin) {
-        await _authService.loginWithEmail(
-          emailController.text.trim(),
-          passwordController.text.trim(),
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
         );
       } else {
-        await _authService.registerWithEmail(
-          emailController.text.trim(),
-          passwordController.text.trim(),
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
         );
       }
+
+      // ❌ Navigator yok
+      // AuthWrapper yönetecek
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? "Auth error")));
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ).showSnackBar(const SnackBar(content: Text("Unexpected error")));
+    } finally {
+      setState(() => loading = false);
     }
+  }
 
-    setState(() => loading = false);
+  Future<void> _googleLogin() async {
+    try {
+      setState(() => loading = true);
+
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => loading = false);
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Google login failed")));
+    } finally {
+      setState(() => loading = false);
+    }
   }
 
   @override
@@ -90,9 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
 
             ElevatedButton(
-              onPressed: () async {
-                await _authService.signInWithGoogle();
-              },
+              onPressed: _googleLogin,
               child: const Text("Continue with Google"),
             ),
           ],
