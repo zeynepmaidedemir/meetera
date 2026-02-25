@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../state/app_state.dart';
 import '../services/city_service.dart';
@@ -80,7 +78,7 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
 
     final appState = context.read<AppState>();
 
-    appState.setCity(
+    await appState.setCity(
       city: city,
       country: country,
       countryCode: countryCode,

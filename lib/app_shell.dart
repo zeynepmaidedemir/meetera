@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:meetera/ai/ai_chat_list_screen.dart';
-import 'package:provider/provider.dart';
+
+// AI
+import 'ai/ai_chat_list_screen.dart';
 
 // Screens
-import 'screens/home_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/buddy_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/events_screen.dart';
 import 'explore/explore_screen.dart';
 import 'screens/profile_screen.dart';
-
-// States
-import 'state/app_state.dart';
-import 'state/event_state.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -26,7 +23,7 @@ class _AppShellState extends State<AppShell> {
   Offset? aiOffset;
 
   final screens = const [
-    HomeScreen(),
+    DashboardScreen(), // ✅ Home tab artık Dashboard
     BuddyScreen(),
     CommunityScreen(),
     EventsScreen(),
@@ -37,7 +34,6 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-
     aiOffset ??= Offset(16, size.height - 180);
 
     return Scaffold(
@@ -45,7 +41,7 @@ class _AppShellState extends State<AppShell> {
         children: [
           screens[index],
 
-          // 🤖 DRAGGABLE AI
+          // 🤖 DRAGGABLE AI (istersen sabit FAB'a da çevirebiliriz)
           Positioned(
             left: aiOffset!.dx,
             top: aiOffset!.dy,
@@ -66,9 +62,7 @@ class _AppShellState extends State<AppShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) {
-          setState(() => index = i);
-        },
+        onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(

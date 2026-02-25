@@ -1,50 +1,54 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-
-  Future<String> uploadProfilePhoto(File image) async {
-    final user = _auth.currentUser!;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('profile_photos')
-        .child('${user.uid}.jpg');
-
-    await ref.putFile(image);
-
-    final url = await ref.getDownloadURL();
-
-    await _firestore.collection('users').doc(user.uid).update({
-      'photoUrl': url,
-    });
-
-    return url; // 👈 BUNU EKLE
-  }
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   User? get currentUser => _auth.currentUser;
-
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // ✅ Ensure user doc exists (idempotent)
+  Future<void> ensureUserDoc({User? user}) async {
+    final u = user ?? _auth.currentUser;
+    if (u == null) return;
+
+    final ref = _firestore.collection('users').doc(u.uid);
+    final snap = await ref.get();
+
+    if (snap.exists) return;
+
+    await ref.set({
+      'displayName': u.displayName ?? '',
+      'email': u.email ?? '',
+      'photoUrl': u.photoURL ?? '',
+      'cityId': '',
+      'cityName': '',
+      'country': '',
+      'countryCode': '',
+      'interests': <String>[],
+      'onboardingCompleted': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   // 🔵 Email Register
   Future<UserCredential> registerWithEmail(
-    String email,
-    String password,
-  ) async {
+      String email, String password) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
 
-    await _createUserIfNotExists(credential.user!);
+    // user doc'u garantiye al
+    await ensureUserDoc(user: credential.user);
 
     return credential;
   }
@@ -56,7 +60,8 @@ class AuthService {
       password: password,
     );
 
-    await _createUserIfNotExists(credential.user!);
+    // user doc'u garantiye al
+    await ensureUserDoc(user: credential.user);
 
     return credential;
   }
@@ -64,7 +69,6 @@ class AuthService {
   // 🔵 Google Login
   Future<UserCredential> signInWithGoogle() async {
     final googleUser = await _googleSignIn.signIn();
-
     if (googleUser == null) {
       throw Exception("Google sign in cancelled");
     }
@@ -78,7 +82,8 @@ class AuthService {
 
     final userCredential = await _auth.signInWithCredential(credential);
 
-    await _createUserIfNotExists(userCredential.user!);
+    // user doc'u garantiye al
+    await ensureUserDoc(user: userCredential.user);
 
     return userCredential;
   }
@@ -89,46 +94,44 @@ class AuthService {
     await _auth.signOut();
   }
 
-  // 🔥 Firestore user oluşturma
-  Future<void> _createUserIfNotExists(User user) async {
-    final docRef = _firestore.collection('users').doc(user.uid);
-    final snapshot = await docRef.get();
-
-    if (!snapshot.exists) {
-      await docRef.set({
-        'uid': user.uid,
-        'email': user.email ?? '',
-        'displayName': user.displayName ?? '',
-        'photoUrl': user.photoURL ?? '',
-        'bio': '',
-        'city': '',
-        'country': '',
-        'countryCode': '',
-        'cityId': '',
-        'interests': [],
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
-  // 🟣 Profile Update (ileride kullanacağız)
+  // 🟣 Profile Update (core alanlar)
   Future<void> updateProfile({
     required String displayName,
-    required String bio,
-    required String city,
+    required String bio, // eğer tutmak istiyorsan user doc'a da ekleyebilirsin
+    required String cityName,
     required String country,
+    required String countryCode,
+    required String cityId,
     required List<String> interests,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore.collection('users').doc(user.uid).update({
+    await _firestore.collection('users').doc(user.uid).set({
       'displayName': displayName,
-      'bio': bio,
-      'city': city,
       'country': country,
+      'countryCode': countryCode,
+      'cityId': cityId,
+      'cityName': cityName,
       'interests': interests,
-    });
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // 🖼 Upload profile photo
+  Future<String> uploadProfilePhoto(File image) async {
+    final user = _auth.currentUser!;
+    final ref = _storage.ref().child('profile_photos/${user.uid}.jpg');
+
+    await ref.putFile(image);
+
+    final url = await ref.getDownloadURL();
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'photoUrl': url,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return url;
   }
 }

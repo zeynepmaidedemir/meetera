@@ -7,7 +7,6 @@ class ExplorePlace {
   String name;
   ExploreStatus status;
 
-  /// persist + streak için
   final DateTime createdAt;
   DateTime? visitedAt;
 
@@ -21,38 +20,29 @@ class ExplorePlace {
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'lat': position.latitude,
-    'lng': position.longitude,
-    'name': name,
-    'status': status.name,
-    'createdAt': createdAt.toIso8601String(),
-    'visitedAt': visitedAt?.toIso8601String(),
-  };
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'name': name,
+        'status': status.key,
+        'createdAt': createdAt.millisecondsSinceEpoch,
+        'visitedAt': visitedAt?.millisecondsSinceEpoch,
+      };
 
-  static ExplorePlace fromJson(Map<String, dynamic> json) {
+  factory ExplorePlace.fromJson(String id, Map<String, dynamic> json) {
     return ExplorePlace(
-      id: json['id'] as String,
+      id: id,
       position: LatLng(
         (json['lat'] as num).toDouble(),
         (json['lng'] as num).toDouble(),
       ),
       name: (json['name'] as String?) ?? 'Pinned place',
-      status: ExploreStatus.values.firstWhere(
-        (e) => e.name == (json['status'] as String?),
-        orElse: () => ExploreStatus.wish,
+      status: ExploreStatusExt.fromKey((json['status'] as String?) ?? 'wish'),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        (json['createdAt'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
       ),
-      createdAt: _dt(json['createdAt']) ?? DateTime.now(),
-      visitedAt: _dt(json['visitedAt']),
+      visitedAt: json['visitedAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['visitedAt'] as int),
     );
-  }
-
-  static DateTime? _dt(dynamic v) {
-    if (v == null) return null;
-    try {
-      return DateTime.parse(v.toString());
-    } catch (_) {
-      return null;
-    }
   }
 }

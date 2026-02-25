@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:meetera/explore/models/place_status.dart';
 import 'package:provider/provider.dart';
+
 import 'state/explore_state.dart';
 import 'models/explore_place.dart';
+import 'models/place_status.dart';
+import 'utils/route_utils.dart';
 
 class ExploreRouteScreen extends StatelessWidget {
   const ExploreRouteScreen({super.key});
@@ -19,7 +21,7 @@ class ExploreRouteScreen extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Add at least 2 Wish places to build a route 🧭\n\nTip: Long press on map → Wish',
+              'Route için en az 2 adet WISH pin lazım 🧭\n\nMap’te long press → WISH seç.',
               textAlign: TextAlign.center,
             ),
           ),
@@ -27,16 +29,17 @@ class ExploreRouteScreen extends StatelessWidget {
       );
     }
 
-    final route = explore.buildWishRoute();
+    final List<ExplorePlace> route = explore.buildWishRoute();
+    final preview = RouteUtils.buildWalkingRoute(route);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Wish Route')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _header(route),
+          _header(route.length, preview),
           const SizedBox(height: 14),
-          ..._routeCards(route),
+          ..._routeCards(preview),
           const SizedBox(height: 18),
           _note(),
         ],
@@ -44,7 +47,7 @@ class ExploreRouteScreen extends StatelessWidget {
     );
   }
 
-  Widget _header(List<ExplorePlace> route) {
+  Widget _header(int stops, RoutePreview preview) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -57,8 +60,10 @@ class ExploreRouteScreen extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Suggested explore order (${route.length} stops)',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              'Stops: $stops\n'
+              'Distance: ${preview.totalDistanceKm.toStringAsFixed(2)} km\n'
+              'Walking: ${preview.estimatedMinutes} min',
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -66,12 +71,14 @@ class ExploreRouteScreen extends StatelessWidget {
     );
   }
 
-  List<Widget> _routeCards(List<ExplorePlace> route) {
+  List<Widget> _routeCards(RoutePreview preview) {
     final cards = <Widget>[];
+    final steps = preview.steps;
 
-    for (int i = 0; i < route.length; i++) {
-      final p = route[i];
-      final isLast = i == route.length - 1;
+    for (int i = 0; i < steps.length; i++) {
+      final p = steps[i].place;
+      final seg = steps[i].distanceKm;
+      final isLast = i == steps.length - 1;
 
       cards.add(
         Container(
@@ -87,7 +94,20 @@ class ExploreRouteScreen extends StatelessWidget {
               CircleAvatar(radius: 14, child: Text('${i + 1}')),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(p.name, style: const TextStyle(fontSize: 15)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.name,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(
+                      i == 0 ? "Start" : "+ ${seg.toStringAsFixed(2)} km",
+                      style: TextStyle(
+                          color: Colors.black.withOpacity(0.6), fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
               if (!isLast) const Icon(Icons.arrow_downward_rounded),
             ],
@@ -101,7 +121,7 @@ class ExploreRouteScreen extends StatelessWidget {
 
   Widget _note() {
     return Text(
-      'A discovery path, not navigation.\nWe don’t use your live location yet — this order is based on pins proximity.',
+      'Bu “story planı” — navigasyon değil.\nSadece pin’lerin birbirine yakınlığına göre sıralanır.',
       style: TextStyle(color: Colors.black.withOpacity(0.6)),
       textAlign: TextAlign.center,
     );

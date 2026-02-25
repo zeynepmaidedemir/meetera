@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
-import '../state/app_state.dart';
+import '../app_shell.dart';
 import '../onboarding/city_picker_screen.dart';
 import '../onboarding/interest_picker_screen.dart';
-import '../app_shell.dart';
+import '../services/auth_service.dart';
+import '../state/app_state.dart';
 
 class OnboardingGate extends StatefulWidget {
   const OnboardingGate({super.key});
@@ -14,36 +17,59 @@ class OnboardingGate extends StatefulWidget {
 }
 
 class _OnboardingGateState extends State<OnboardingGate> {
-  @override
-  void initState() {
-    super.initState();
-
-    // 🔥 Profile load AFTER build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppState>().loadUserProfile();
-    });
-  }
+  bool _ensured = false;
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final ref = FirebaseFirestore.instance.collection('users').doc(uid);
 
-    // 🔥 Profile loading
-    if (!appState.profileLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return StreamBuilder<DocumentSnapshot>(
+      stream: ref.snapshots(),
+      builder: (context, snapshot) {
+        // loading
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    // 🔥 City not selected
-    if (!appState.hasCity) {
-      return const CityPickerScreen();
-    }
+        // doc yoksa -> create + loading göster
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (!_ensured) {
+            _ensured = true;
+            AuthService().ensureUserDoc();
+          }
 
-    // 🔥 Interests not selected
-    if (!appState.hasInterests) {
-      return const InterestPickerScreen();
-    }
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    // 🔥 All good → main app
-    return const AppShell();
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+
+        // 🔥 local state'e hydrate
+        context.read<AppState>().hydrateFromFirestore(data);
+
+        final cityId = (data['cityId'] ?? '') as String;
+        final interests = List<String>.from(data['interests'] ?? []);
+        final onboardingCompleted = data['onboardingCompleted'] ?? false;
+
+        if (cityId.isEmpty) {
+          return const CityPickerScreen();
+        }
+
+        if (interests.isEmpty) {
+          return const InterestPickerScreen();
+        }
+
+        if (onboardingCompleted == true) {
+          return const AppShell();
+        }
+
+        // fallback
+        return const AppShell();
+      },
+    );
   }
 }

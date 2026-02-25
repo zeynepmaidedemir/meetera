@@ -21,7 +21,6 @@ class RoutePreview {
 }
 
 class RouteUtils {
-  /// Walking default: ~5 km/h
   static const double walkingSpeedKmPerHour = 5;
 
   static RoutePreview buildWalkingRoute(List<ExplorePlace> places) {
@@ -31,36 +30,28 @@ class RouteUtils {
 
     final remaining = [...places];
     final ordered = <ExplorePlace>[];
-
-    // start from first
     ordered.add(remaining.removeAt(0));
 
     while (remaining.isNotEmpty) {
       final last = ordered.last;
-
-      remaining.sort((a, b) {
-        final da = _distanceKm(last, a);
-        final db = _distanceKm(last, b);
-        return da.compareTo(db);
-      });
-
+      remaining
+          .sort((a, b) => _distanceKm(last, a).compareTo(_distanceKm(last, b)));
       ordered.add(remaining.removeAt(0));
     }
 
     double total = 0;
     final steps = <RouteStep>[];
 
-    for (var i = 0; i < ordered.length; i++) {
-      double d = 0;
+    for (int i = 0; i < ordered.length; i++) {
+      double seg = 0;
       if (i > 0) {
-        d = _distanceKm(ordered[i - 1], ordered[i]);
-        total += d;
+        seg = _distanceKm(ordered[i - 1], ordered[i]);
+        total += seg;
       }
-      steps.add(RouteStep(place: ordered[i], distanceKm: d));
+      steps.add(RouteStep(place: ordered[i], distanceKm: seg));
     }
 
-    final hours = total / walkingSpeedKmPerHour;
-    final minutes = (hours * 60).round();
+    final minutes = ((total / walkingSpeedKmPerHour) * 60).round();
 
     return RoutePreview(
       steps: steps,
@@ -73,12 +64,10 @@ class RouteUtils {
     const r = 6371;
     final dLat = _deg2rad(b.position.latitude - a.position.latitude);
     final dLon = _deg2rad(b.position.longitude - a.position.longitude);
-
     final lat1 = _deg2rad(a.position.latitude);
     final lat2 = _deg2rad(b.position.latitude);
 
-    final h =
-        sin(dLat / 2) * sin(dLat / 2) +
+    final h = sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
 
     return 2 * r * atan2(sqrt(h), sqrt(1 - h));

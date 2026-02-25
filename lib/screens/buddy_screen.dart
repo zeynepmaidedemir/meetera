@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../state/buddy_state.dart';
 import '../state/app_state.dart';
-import '../state/chat_state.dart';
 import '../models/buddy_user.dart';
-import 'chat_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'buddy_card.dart';
 
 class BuddyScreen extends StatefulWidget {
   const BuddyScreen({super.key});
@@ -15,118 +14,84 @@ class BuddyScreen extends StatefulWidget {
 }
 
 class _BuddyScreenState extends State<BuddyScreen> {
+  bool _loaded = false;
+  List<String> _connectedIds = [];
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_loaded) return;
+
     final cityId = context.read<AppState>().cityId;
-    if (cityId != null) {
+    if (cityId != null && cityId.isNotEmpty) {
       context.read<BuddyState>().loadUsersByCity(cityId);
+      _loadConnections();
     }
+    _loaded = true;
+  }
+
+  Future<void> _loadConnections() async {
+    final buddyState = context.read<BuddyState>();
+    final ids = await buddyState.getMyConnectedIds();
+    if (!mounted) return;
+    setState(() {
+      _connectedIds = ids;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final buddyState = context.watch<BuddyState>();
     final appState = context.watch<AppState>();
-    final chatState = context.read<ChatState>();
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    final myInterests = appState.interests.toList();
-
     final users = buddyState.users;
+
+    final sorted = [...users];
+
+    sorted.sort((a, b) {
+      final aConnected = _connectedIds.contains(a.uid);
+      final bConnected = _connectedIds.contains(b.uid);
+
+      if (aConnected && !bConnected) return -1;
+      if (!aConnected && bConnected) return 1;
+
+      final aMatch = buddyState.matchPercent(
+        myInterests: appState.interests.toList(),
+        otherInterests: a.interests,
+      );
+
+      final bMatch = buddyState.matchPercent(
+        myInterests: appState.interests.toList(),
+        otherInterests: b.interests,
+      );
+
+      return bMatch.compareTo(aMatch);
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text("Buddies")),
-      body: users.isEmpty
+      body: sorted.isEmpty
           ? const Center(child: Text("No users in this city yet 👀"))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: users.length,
-              itemBuilder: (_, i) {
-                final user = users[i];
-
-                final match = buddyState.matchPercent(
-                  myInterests: myInterests,
-                  otherInterests: user.interests,
-                );
-
-                final percent = (match * 100).round();
-                final isConnected = buddyState.isConnected(user.uid);
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundImage: user.photoUrl.isNotEmpty
-                                  ? NetworkImage(user.photoUrl)
-                                  : null,
-                              child: user.photoUrl.isEmpty
-                                  ? Text(user.displayName[0].toUpperCase())
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(user.displayName,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
-                            ),
-                            Text("$percent%"),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(user.bio),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: isConnected
-                                    ? null
-                                    : () => buddyState.connect(user.uid),
-                                child:
-                                    Text(isConnected ? "Connected" : "Connect"),
-                              ),
-                            ),
-                            if (isConnected) ...[
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.chat),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChatScreen(
-                                        otherUserId: user.uid,
-                                        otherUserName: user.displayName,
-                                      ),
-                                    ),
-                                  );
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChatScreen(
-                                        otherUserId: user.uid,
-                                        otherUserName: user.displayName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              )
-                            ]
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                );
+          : RefreshIndicator(
+              onRefresh: () async {
+                final cityId = appState.cityId;
+                if (cityId != null) {
+                  await buddyState.loadUsersByCity(cityId);
+                  await _loadConnections();
+                }
               },
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: sorted.length,
+                itemBuilder: (_, i) {
+                  final BuddyUser user = sorted[i];
+                  final isConnected = _connectedIds.contains(user.uid);
+
+                  return BuddyCard(
+                    buddy: user,
+                    isConnected: isConnected,
+                  );
+                },
+              ),
             ),
     );
   }

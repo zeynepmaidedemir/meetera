@@ -5,76 +5,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 class AppState extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  String? _city;
-  String? _country;
-  String? _countryCode;
-  String? _cityId;
+  String? city;
+  String? country;
+  String? countryCode;
+  String? cityId;
 
-  final Set<String> _interests = {};
-  final Set<String> _connectedBuddyIds = {};
+  Set<String> interests = {};
 
-  bool _profileLoaded = false;
+  bool onboardingCompleted = false;
 
-  // =========================
-  // GETTERS
-  // =========================
+  // 🔥 Firestore’dan hydrate
+  void hydrateFromFirestore(Map<String, dynamic> data) {
+    city = data['cityName'];
+    country = data['country'];
+    countryCode = data['countryCode'];
+    cityId = data['cityId'];
+    interests = Set<String>.from(data['interests'] ?? []);
+    onboardingCompleted = data['onboardingCompleted'] ?? false;
 
-  String? get city => _city;
-  String? get country => _country;
-  String? get countryCode => _countryCode;
-  String? get cityId => _cityId;
-
-  bool get profileLoaded => _profileLoaded;
-
-  Set<String> get interests => _interests;
-
-  bool get hasCity => _cityId != null && _cityId!.isNotEmpty;
-  bool get hasInterests => _interests.isNotEmpty;
-
-  String get cityLabel =>
-      _city != null && _country != null ? '$_city, $_country' : '';
-
-  // 🔥 Buddy compatibility
-  bool isConnected(String buddyId) {
-    return _connectedBuddyIds.contains(buddyId);
-  }
-
-  // =========================
-  // LOAD PROFILE
-  // =========================
-
-  Future<void> loadUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-
-    if (!doc.exists) {
-      _profileLoaded = true;
-      notifyListeners();
-      return;
-    }
-
-    final data = doc.data()!;
-
-    _city = data['city'];
-    _country = data['country'];
-    _countryCode = data['countryCode'];
-    _cityId = data['cityId'];
-
-    final dbInterests = List<String>.from(data['interests'] ?? []);
-
-    _interests
-      ..clear()
-      ..addAll(dbInterests);
-
-    _profileLoaded = true;
     notifyListeners();
   }
 
-  // =========================
-  // SAVE CITY
-  // =========================
+  String get cityLabel =>
+      city != null && country != null ? '$city, $country' : '';
 
   Future<void> setCity({
     required String city,
@@ -82,71 +35,41 @@ class AppState extends ChangeNotifier {
     required String countryCode,
     required String cityId,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    _city = city;
-    _country = country;
-    _countryCode = countryCode;
-    _cityId = cityId;
-
-    await _firestore.collection('users').doc(user.uid).set({
-      'city': city,
+    await _firestore.collection('users').doc(uid).update({
+      'cityName': city,
       'country': country,
       'countryCode': countryCode,
       'cityId': cityId,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    notifyListeners();
+    });
   }
 
-  // =========================
-  // INTERESTS
-  // =========================
-
   void toggleInterest(String interest) {
-    if (_interests.contains(interest)) {
-      _interests.remove(interest);
+    if (interests.contains(interest)) {
+      interests.remove(interest);
     } else {
-      _interests.add(interest);
+      interests.add(interest);
     }
     notifyListeners();
   }
 
   Future<void> saveInterests() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    await _firestore.collection('users').doc(user.uid).set({
-      'interests': _interests.toList(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    notifyListeners();
+    await _firestore.collection('users').doc(uid).update({
+      'interests': interests.toList(),
+      'onboardingCompleted': true,
+    });
   }
-
-  // =========================
-  // BUDDY CONNECT
-  // =========================
-
-  void connectBuddy(String buddyId) {
-    _connectedBuddyIds.add(buddyId);
-    notifyListeners();
-  }
-
-  // =========================
-  // RESET
-  // =========================
 
   void reset() {
-    _city = null;
-    _country = null;
-    _countryCode = null;
-    _cityId = null;
-    _interests.clear();
-    _connectedBuddyIds.clear();
-    _profileLoaded = false;
+    city = null;
+    country = null;
+    countryCode = null;
+    cityId = null;
+    interests.clear();
+    onboardingCompleted = false;
     notifyListeners();
   }
 }

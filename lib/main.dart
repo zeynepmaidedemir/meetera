@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:meetera/explore/state/explore_state.dart';
-import 'package:meetera/state/ai_chat_state.dart';
 import 'package:provider/provider.dart';
 
 import 'services/notification_service.dart';
@@ -11,16 +9,17 @@ import 'state/chat_state.dart';
 import 'state/community_state.dart';
 import 'state/event_state.dart';
 import 'state/buddy_state.dart';
+import 'state/ai_chat_state.dart';
+import 'explore/state/explore_state.dart';
 
-import 'auth/auth_wrapper.dart'; // 🔥 bunu ekle
+import 'auth/auth_wrapper.dart';
+
+import 'explore/explore_route_screen.dart';
+import 'explore/explore_wrap_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 🔥 Firebase initialize
   await Firebase.initializeApp();
-
-  // 🔔 Notification init
   await NotificationService.init();
 
   runApp(
@@ -44,9 +43,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthWrapper(), // 🔥 burayı değiştirdik
+      home: const AuthWrapper(),
+
+      // 🔥 BURASI ÇOK ÖNEMLİ
+      routes: {
+        "/exploreRoute": (_) => const ExploreRouteScreen(),
+        "/exploreWrap": (_) => const ExploreWrapScreen(),
+      },
     );
   }
 }

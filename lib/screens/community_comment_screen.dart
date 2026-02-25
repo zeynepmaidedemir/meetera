@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+
+import '../state/community_state.dart';
 
 class CommunityCommentScreen extends StatefulWidget {
+  final String cityId;
   final String postId;
 
-  const CommunityCommentScreen({super.key, required this.postId});
+  const CommunityCommentScreen({
+    super.key,
+    required this.cityId,
+    required this.postId,
+  });
 
   @override
   State<CommunityCommentScreen> createState() => _CommunityCommentScreenState();
@@ -13,32 +19,33 @@ class CommunityCommentScreen extends StatefulWidget {
 
 class _CommunityCommentScreenState extends State<CommunityCommentScreen> {
   final controller = TextEditingController();
-  final _firestore = FirebaseFirestore.instance;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final community = context.read<CommunityState>();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Comments")),
       body: Column(
         children: [
-          // 🔥 REALTIME COMMENTS
           Expanded(
             child: StreamBuilder(
-              stream: _firestore
-                  .collection('posts')
-                  .doc(widget.postId)
-                  .collection('comments')
-                  .orderBy('createdAt')
-                  .snapshots(),
+              stream: community.commentsStream(
+                cityId: widget.cityId,
+                postId: widget.postId,
+              ),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
-
                 if (docs.isEmpty) {
                   return const Center(child: Text("No comments yet 💬"));
                 }
@@ -47,22 +54,23 @@ class _CommunityCommentScreenState extends State<CommunityCommentScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
                   itemBuilder: (_, i) {
-                    final c = docs[i];
+                    final c = docs[i].data();
+                    final author = (c['authorName'] ?? 'User').toString();
+                    final text = (c['text'] ?? '').toString();
 
                     return ListTile(
                       leading: CircleAvatar(
-                        child: Text(c['authorName'][0].toUpperCase()),
+                        child: Text(
+                            author.isNotEmpty ? author[0].toUpperCase() : 'U'),
                       ),
-                      title: Text(c['authorName']),
-                      subtitle: Text(c['text']),
+                      title: Text(author),
+                      subtitle: Text(text),
                     );
                   },
                 );
               },
             ),
           ),
-
-          // ✍️ COMMENT INPUT
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -80,19 +88,14 @@ class _CommunityCommentScreenState extends State<CommunityCommentScreen> {
                 IconButton(
                   icon: const Icon(Icons.send),
                   onPressed: () async {
-                    if (controller.text.trim().isEmpty || user == null) return;
+                    final text = controller.text.trim();
+                    if (text.isEmpty) return;
 
-                    await _firestore
-                        .collection('posts')
-                        .doc(widget.postId)
-                        .collection('comments')
-                        .add({
-                          'authorId': user.uid,
-                          'authorName': user.displayName ?? "User",
-                          'text': controller.text.trim(),
-                          'createdAt': FieldValue.serverTimestamp(),
-                        });
-
+                    await community.addComment(
+                      cityId: widget.cityId,
+                      postId: widget.postId,
+                      text: text,
+                    );
                     controller.clear();
                   },
                 ),

@@ -24,6 +24,7 @@ dependencies:
   # Maps & Location
   google_maps_flutter: ^2.6.0
   geocoding: ^2.2.0
+  uuid: ^4.5.1
 
   # Calendar
   add_2_calendar: ^3.0.1

@@ -1,266 +1,155 @@
-import 'dart:convert';
-import 'dart:math' as m;
-
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/explore_place.dart';
 import '../models/place_status.dart';
-
-class ExploreBadge {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool earned;
-
-  ExploreBadge({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.earned,
-  });
-}
+import '../services/badge_engine.dart';
+import '../services/wish_route_engine.dart';
 
 class ExploreState extends ChangeNotifier {
-  static const _kKey = 'explore_places_v2';
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+
+  StreamSubscription? _sub;
 
   final List<ExplorePlace> _places = [];
-  bool _loaded = false;
-
   List<ExplorePlace> get all => List.unmodifiable(_places);
 
-  List<ExplorePlace> byStatus(ExploreStatus status) =>
-      _places.where((p) => p.status == status).toList();
+  List<ExplorePlace> byStatus(ExploreStatus s) =>
+      _places.where((p) => p.status == s).toList();
 
-  Future<void> ensureLoaded() async {
-    if (_loaded) return;
-    _loaded = true;
+  String? get _uid => _auth.currentUser?.uid;
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kKey);
-      if (raw == null || raw.trim().isEmpty) {
-        notifyListeners();
-        return;
-      }
+  // badges
+  List<String> _badges = [];
+  List<String> get badges => List.unmodifiable(_badges);
 
-      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+  String? _lastEarned;
+  String? consumeNewBadge() {
+    final b = _lastEarned;
+    _lastEarned = null;
+    return b;
+  }
+
+  void _refreshBadges() {
+    final updated = BadgeEngine.calculate(
+      visited: byStatus(ExploreStatus.visited).length,
+      favorites: byStatus(ExploreStatus.favorite).length,
+      wishes: byStatus(ExploreStatus.wish).length,
+      streak: currentStreak,
+      current: _badges,
+    );
+
+    final gained = updated.where((e) => !_badges.contains(e)).toList();
+    _badges = updated;
+    if (gained.isNotEmpty) _lastEarned = gained.first;
+  }
+
+  void startListening() {
+    final uid = _uid;
+    if (uid == null) return;
+
+    _sub?.cancel();
+    _sub = _firestore
+        .collection('explore')
+        .doc(uid)
+        .collection('pins')
+        .orderBy('createdAt')
+        .snapshots()
+        .listen((snap) {
       _places
         ..clear()
-        ..addAll(list.map(ExplorePlace.fromJson));
-
+        ..addAll(snap.docs.map((d) => ExplorePlace.fromJson(d.id, d.data())));
+      _refreshBadges();
       notifyListeners();
-    } catch (_) {
-      // sessiz geç
-      notifyListeners();
-    }
+    });
   }
 
-  Future<void> _persist() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = jsonEncode(_places.map((e) => e.toJson()).toList());
-      await prefs.setString(_kKey, raw);
-    } catch (_) {}
-  }
+  Future<void> add(ExplorePlace place) async {
+    final uid = _uid;
+    if (uid == null) return;
 
-  void add(ExplorePlace place) {
-    _places.add(place);
-    _persist();
-    notifyListeners();
-  }
-
-  void update(ExplorePlace place) {
-    final idx = _places.indexWhere((p) => p.id == place.id);
-    if (idx == -1) return;
-
-    // visitedAt set kuralı
-    final prev = _places[idx];
-    if (prev.status != ExploreStatus.visited &&
-        place.status == ExploreStatus.visited) {
-      place.visitedAt ??= DateTime.now();
+    // visited kuralı
+    if (place.status == ExploreStatus.visited && place.visitedAt == null) {
+      place.visitedAt = DateTime.now();
     }
 
-    _places[idx] = place;
-    _persist();
-    notifyListeners();
+    await _firestore
+        .collection('explore')
+        .doc(uid)
+        .collection('pins')
+        .doc(place.id)
+        .set(place.toJson());
   }
 
-  void remove(String id) {
-    _places.removeWhere((p) => p.id == id);
-    _persist();
-    notifyListeners();
+  Future<void> update(ExplorePlace place) async {
+    final uid = _uid;
+    if (uid == null) return;
+
+    if (place.status == ExploreStatus.visited && place.visitedAt == null) {
+      place.visitedAt = DateTime.now();
+    }
+
+    await _firestore
+        .collection('explore')
+        .doc(uid)
+        .collection('pins')
+        .doc(place.id)
+        .update(place.toJson());
   }
 
-  // -----------------------
-  // 🔥 Streak (visited days)
-  // -----------------------
+  Future<void> remove(String id) async {
+    final uid = _uid;
+    if (uid == null) return;
+
+    await _firestore
+        .collection('explore')
+        .doc(uid)
+        .collection('pins')
+        .doc(id)
+        .delete();
+  }
+
+  // streak
   int get currentStreak {
-    final visited =
-        byStatus(ExploreStatus.visited)
-            .map((p) => p.visitedAt)
-            .whereType<DateTime>()
-            .map((d) => DateTime(d.year, d.month, d.day))
-            .toSet()
-            .toList()
-          ..sort();
+    final days = byStatus(ExploreStatus.visited)
+        .map((e) => e.visitedAt)
+        .whereType<DateTime>()
+        .map((d) => DateTime(d.year, d.month, d.day))
+        .toSet()
+        .toList()
+      ..sort();
 
-    if (visited.isEmpty) return 0;
+    if (days.isEmpty) return 0;
 
     final today = DateTime.now();
-    var day = DateTime(today.year, today.month, today.day);
+    var check = DateTime(today.year, today.month, today.day);
 
-    // streak today veya en son gün üzerinden
-    final set = visited.toSet();
-    int streak = 0;
-
-    // eğer bugün yoksa ama dün varsa streak yine yürüsün (soft)
-    if (!set.contains(day)) {
-      final yesterday = day.subtract(const Duration(days: 1));
-      if (set.contains(yesterday)) {
-        day = yesterday;
-      } else {
-        return 0;
-      }
+    final set = days.toSet();
+    if (!set.contains(check)) {
+      check = check.subtract(const Duration(days: 1));
+      if (!set.contains(check)) return 0;
     }
 
-    while (set.contains(day)) {
+    int streak = 0;
+    while (set.contains(check)) {
       streak++;
-      day = day.subtract(const Duration(days: 1));
+      check = check.subtract(const Duration(days: 1));
     }
     return streak;
   }
 
-  List<ExploreBadge> get badges {
-    final visited = byStatus(ExploreStatus.visited).length;
-    final fav = byStatus(ExploreStatus.favorite).length;
-    final wish = byStatus(ExploreStatus.wish).length;
-    final streak = currentStreak;
-
-    return [
-      ExploreBadge(
-        title: 'First Pin',
-        subtitle: 'Pinned your first place 📍',
-        icon: Icons.push_pin_outlined,
-        earned: _places.isNotEmpty,
-      ),
-      ExploreBadge(
-        title: 'Explorer',
-        subtitle: 'Visited 3 places ✅',
-        icon: Icons.explore_outlined,
-        earned: visited >= 3,
-      ),
-      ExploreBadge(
-        title: 'Collector',
-        subtitle: 'Saved 5 wishes 🧭',
-        icon: Icons.bookmark_border,
-        earned: wish >= 5,
-      ),
-      ExploreBadge(
-        title: 'Taste',
-        subtitle: 'Marked 3 favorites 💗',
-        icon: Icons.favorite_border,
-        earned: fav >= 3,
-      ),
-      ExploreBadge(
-        title: 'Streak',
-        subtitle: '2-day explore streak 🔥',
-        icon: Icons.local_fire_department_outlined,
-        earned: streak >= 2,
-      ),
-    ];
-  }
-
-  // -----------------------
-  // 🧭 Route suggestion (no GPS)
-  // nearest-neighbor starting from "medoid"
-  // -----------------------
+  // route
   List<ExplorePlace> buildWishRoute() {
-    final wish = byStatus(ExploreStatus.wish);
-    if (wish.length <= 2) return wish;
-
-    // start = point with smallest total distance (medoid-ish)
-    ExplorePlace start = wish.first;
-    double best = double.infinity;
-
-    for (final a in wish) {
-      double sum = 0;
-      for (final b in wish) {
-        if (a.id == b.id) continue;
-        sum += _haversineMeters(
-          a.position.latitude,
-          a.position.longitude,
-          b.position.latitude,
-          b.position.longitude,
-        );
-      }
-      if (sum < best) {
-        best = sum;
-        start = a;
-      }
-    }
-
-    final remaining = [...wish];
-    remaining.removeWhere((p) => p.id == start.id);
-
-    final route = <ExplorePlace>[start];
-    var current = start;
-
-    while (remaining.isNotEmpty) {
-      ExplorePlace nearest = remaining.first;
-      double nearestD = double.infinity;
-
-      for (final p in remaining) {
-        final d = _haversineMeters(
-          current.position.latitude,
-          current.position.longitude,
-          p.position.latitude,
-          p.position.longitude,
-        );
-        if (d < nearestD) {
-          nearestD = d;
-          nearest = p;
-        }
-      }
-
-      route.add(nearest);
-      remaining.removeWhere((p) => p.id == nearest.id);
-      current = nearest;
-    }
-
-    return route;
+    final wishes = byStatus(ExploreStatus.wish);
+    return WishRouteEngine.buildSmartRoute(wishes);
   }
 
-  static double _haversineMeters(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const R = 6371000.0;
-    final dLat = _deg2rad(lat2 - lat1);
-    final dLon = _deg2rad(lon2 - lon1);
-
-    final a =
-        (sin(dLat / 2) * sin(dLat / 2)) +
-        cos(_deg2rad(lat1)) *
-            cos(_deg2rad(lat2)) *
-            (sin(dLon / 2) * sin(dLon / 2));
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return R * c;
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
-}
-
-// dart:math inline (tek dosyada tutmak için)
-double sin(double x) => Math._sin(x);
-double cos(double x) => Math._cos(x);
-double sqrt(double x) => Math._sqrt(x);
-double atan2(double y, double x) => Math._atan2(y, x);
-double _deg2rad(double d) => d * 0.017453292519943295;
-
-class Math {
-  static double _sin(double x) => m.sin(x);
-  static double _cos(double x) => m.cos(x);
-  static double _sqrt(double x) => m.sqrt(x);
-  static double _atan2(double y, double x) => m.atan2(y, x);
 }
