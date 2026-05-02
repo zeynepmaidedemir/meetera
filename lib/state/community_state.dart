@@ -123,7 +123,7 @@ class CommunityState extends ChangeNotifier {
     final snap = await ref.get();
     if (!snap.exists) return;
 
-    final data = snap.data() as Map<String, dynamic>? ?? {};
+    final data = snap.data() ?? {};
     final likedBy = List<String>.from(data['likedBy'] ?? []);
 
     if (likedBy.contains(user.uid)) {

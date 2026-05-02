@@ -52,25 +52,33 @@ class ChatListScreen extends StatelessWidget {
                     .doc(otherId)
                     .get(),
                 builder: (context, userSnap) {
-                  if (!userSnap.hasData) return const SizedBox();
+                  if (userSnap.hasError) {
+                    return ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.error)),
+                      title: const Text('Error loading user'),
+                      subtitle: Text(t.lastMessage.isEmpty ? 'Say hi 👋' : t.lastMessage),
+                    );
+                  }
+                  
+                  if (!userSnap.hasData) {
+                    return const ListTile(
+                      leading: CircleAvatar(child: CircularProgressIndicator(strokeWidth: 2)),
+                      title: Text('Loading...'),
+                    );
+                  }
 
-                  final userData =
-                      userSnap.data!.data() as Map<String, dynamic>? ?? {};
-
-                  final name =
-                      (userData['displayName'] ?? userData['email'] ?? 'User')
-                          .toString();
+                  final userData = userSnap.data!.data() ?? {};
+                  final name = (userData['displayName'] ?? userData['email'] ?? 'User $otherId').toString();
                   final photoUrl = (userData['photoUrl'] ?? '').toString();
 
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundImage:
-                          photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                      backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                       child: photoUrl.isEmpty
                           ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U')
                           : null,
                     ),
-                    title: Text(name),
+                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(
                       t.lastMessage.isEmpty ? 'Say hi 👋' : t.lastMessage,
                       maxLines: 1,

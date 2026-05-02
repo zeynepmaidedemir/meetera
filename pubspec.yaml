@@ -15,10 +15,10 @@ dependencies:
   provider: ^6.1.2
 
   # Firebase
-  firebase_core: ^2.25.4
-  firebase_auth: ^4.17.4
-  cloud_firestore: ^4.15.9
-  firebase_storage: ^11.6.6
+  firebase_core: ^4.7.0
+  firebase_auth: ^6.4.0
+  cloud_firestore: ^6.2.0
+  firebase_storage: ^13.1.0
   google_sign_in: ^6.2.1
 
   # Maps & Location
@@ -45,6 +45,10 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
+  google_fonts: ^8.1.0
+  cached_network_image: ^3.4.1
+  sign_in_with_apple: ^7.0.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

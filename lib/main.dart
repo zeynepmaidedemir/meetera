@@ -9,8 +9,11 @@ import 'state/chat_state.dart';
 import 'state/community_state.dart';
 import 'state/event_state.dart';
 import 'state/buddy_state.dart';
+import 'state/chat_state.dart';
 import 'state/ai_chat_state.dart';
+import 'state/marketplace_state.dart';
 import 'explore/state/explore_state.dart';
+import 'theme/app_theme.dart';
 
 import 'auth/auth_wrapper.dart';
 
@@ -32,6 +35,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => AiChatState()),
         ChangeNotifierProvider(create: (_) => ExploreState()),
         ChangeNotifierProvider(create: (_) => BuddyState()),
+        ChangeNotifierProvider(create: (_) => ChatState()),
+        ChangeNotifierProvider(create: (_) => MarketplaceState()),
       ],
       child: const MyApp(),
     ),
@@ -44,7 +49,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'MeetEra',
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       home: const AuthWrapper(),
 
       // 🔥 BURASI ÇOK ÖNEMLİ

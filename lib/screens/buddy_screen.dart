@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../state/buddy_state.dart';
 import '../state/app_state.dart';
-import '../models/buddy_user.dart';
+import '../models/user_model.dart';
 import 'buddy_card.dart';
 
 class BuddyScreen extends StatefulWidget {
@@ -14,84 +14,66 @@ class BuddyScreen extends StatefulWidget {
 }
 
 class _BuddyScreenState extends State<BuddyScreen> {
-  bool _loaded = false;
+  String? _currentCityId;
   List<String> _connectedIds = [];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_loaded) return;
 
     final cityId = context.read<AppState>().cityId;
-    if (cityId != null && cityId.isNotEmpty) {
+    if (cityId != null && cityId.isNotEmpty && cityId != _currentCityId) {
+      _currentCityId = cityId;
       context.read<BuddyState>().loadUsersByCity(cityId);
-      _loadConnections();
     }
-    _loaded = true;
-  }
-
-  Future<void> _loadConnections() async {
-    final buddyState = context.read<BuddyState>();
-    final ids = await buddyState.getMyConnectedIds();
-    if (!mounted) return;
-    setState(() {
-      _connectedIds = ids;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final buddyState = context.watch<BuddyState>();
+    final state = context.watch<BuddyState>();
     final appState = context.watch<AppState>();
-    final users = buddyState.users;
-
-    final sorted = [...users];
-
-    sorted.sort((a, b) {
-      final aConnected = _connectedIds.contains(a.uid);
-      final bConnected = _connectedIds.contains(b.uid);
-
-      if (aConnected && !bConnected) return -1;
-      if (!aConnected && bConnected) return 1;
-
-      final aMatch = buddyState.matchPercent(
-        myInterests: appState.interests.toList(),
-        otherInterests: a.interests,
-      );
-
-      final bMatch = buddyState.matchPercent(
-        myInterests: appState.interests.toList(),
-        otherInterests: b.interests,
-      );
-
-      return bMatch.compareTo(aMatch);
-    });
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Buddies")),
-      body: sorted.isEmpty
-          ? const Center(child: Text("No users in this city yet 👀"))
-          : RefreshIndicator(
-              onRefresh: () async {
-                final cityId = appState.cityId;
-                if (cityId != null) {
-                  await buddyState.loadUsersByCity(cityId);
-                  await _loadConnections();
-                }
-              },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: sorted.length,
-                itemBuilder: (_, i) {
-                  final BuddyUser user = sorted[i];
-                  final isConnected = _connectedIds.contains(user.uid);
-
-                  return BuddyCard(
-                    buddy: user,
-                    isConnected: isConnected,
-                  );
-                },
+      appBar: AppBar(
+        title: Text("Buddies in ${appState.city ?? ''}"),
+        centerTitle: true,
+      ),
+      body: state.users.isEmpty
+          ? const Center(
+              child: Text(
+                "No buddies found here yet 😢\nCheck back later!",
+                textAlign: TextAlign.center,
               ),
+            )
+          : StreamBuilder<List<String>>(
+              stream: state.myConnectedIdsStream(),
+              builder: (context, snapshot) {
+                final connectedIds = snapshot.data ?? [];
+                
+                final sortedUsers = List<UserModel>.from(state.users);
+                sortedUsers.sort((a, b) {
+                  final pA = state.matchPercent(
+                    myInterests: appState.interests.toList(),
+                    otherInterests: a.interests,
+                  );
+                  final pB = state.matchPercent(
+                    myInterests: appState.interests.toList(),
+                    otherInterests: b.interests,
+                  );
+                  return pB.compareTo(pA); // descending
+                });
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sortedUsers.length,
+                  itemBuilder: (_, i) {
+                    final u = sortedUsers[i];
+                    final isConnected = connectedIds.contains(u.uid);
+
+                    return BuddyCard(buddy: u, isConnected: isConnected);
+                  },
+                );
+              },
             ),
     );
   }

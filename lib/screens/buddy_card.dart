@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/buddy_user.dart';
+import '../models/user_model.dart';
 import '../state/app_state.dart';
 import '../state/buddy_state.dart';
 import '../state/chat_state.dart';
 import 'chat_screen.dart';
 
 class BuddyCard extends StatefulWidget {
-  final BuddyUser buddy;
+  final UserModel buddy;
   final bool isConnected;
 
   const BuddyCard({
@@ -140,41 +140,72 @@ class _BuddyCardState extends State<BuddyCard> {
                 }).toList(),
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _connecting
-                      ? null
-                      : () async {
-                          setState(() => _connecting = true);
-
-                          if (!widget.isConnected) {
+              if (!widget.isConnected)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _connecting
+                        ? null
+                        : () async {
+                            setState(() => _connecting = true);
                             await buddyState.connect(widget.buddy.uid);
-                          }
-
-                          final chatState = context.read<ChatState>();
-                          await chatState.ensureThread(
-                            otherUserId: widget.buddy.uid,
-                            otherUserName: widget.buddy.displayName,
-                          );
-
-                          setState(() => _connecting = false);
-
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatScreen(
+                            setState(() => _connecting = false);
+                          },
+                    child: const Text("Connect"),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: OutlinedButton(
+                        onPressed: _connecting
+                            ? null
+                            : () async {
+                                setState(() => _connecting = true);
+                                await buddyState.disconnect(widget.buddy.uid);
+                                setState(() => _connecting = false);
+                              },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                        child: const Text("Disconnect", style: TextStyle(fontSize: 13)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: _connecting
+                            ? null
+                            : () async {
+                                setState(() => _connecting = true);
+                                final chatState = context.read<ChatState>();
+                                await chatState.ensureThread(
                                   otherUserId: widget.buddy.uid,
                                   otherUserName: widget.buddy.displayName,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                  child: Text(widget.isConnected ? "Message" : "Connect"),
+                                );
+                                setState(() => _connecting = false);
+
+                                if (context.mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        otherUserId: widget.buddy.uid,
+                                        otherUserName: widget.buddy.displayName,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        child: const Text("Message"),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
         ),

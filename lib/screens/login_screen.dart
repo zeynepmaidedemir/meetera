@@ -89,11 +89,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
             const SizedBox(height: 16),
 
-            ElevatedButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.login),
               onPressed: () async {
                 await _authService.signInWithGoogle();
               },
-              child: const Text("Continue with Google"),
+              label: const Text("Continue with Google"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ElevatedButton.icon(
+              icon: const Icon(Icons.apple),
+              onPressed: () async {
+                await _authService.signInWithApple();
+              },
+              label: const Text("Continue with Apple"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),

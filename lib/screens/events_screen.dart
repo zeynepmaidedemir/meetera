@@ -16,12 +16,15 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
+  String? _currentCityId;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
     final cityId = context.read<AppState>().cityId;
-    if (cityId != null) {
+    if (cityId != null && cityId != _currentCityId) {
+      _currentCityId = cityId;
       context.read<EventState>().listenToEvents(cityId);
     }
   }

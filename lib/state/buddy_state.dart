@@ -2,31 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/buddy_user.dart';
+import '../models/user_model.dart';
+
+import 'dart:async';
 
 class BuddyState extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  List<BuddyUser> _users = [];
-  List<BuddyUser> get users => _users;
+  List<UserModel> _users = [];
+  List<UserModel> get users => _users;
 
   String? get _me => FirebaseAuth.instance.currentUser?.uid;
+  StreamSubscription? _usersSub;
 
-  Future<void> loadUsersByCity(String cityId) async {
+  void loadUsersByCity(String cityId) {
     final me = _me;
     if (me == null) return;
 
-    final snapshot = await _firestore
+    _usersSub?.cancel();
+    _usersSub = _firestore
         .collection('users')
         .where('cityId', isEqualTo: cityId)
-        .get();
-
-    _users = snapshot.docs
-        .where((doc) => doc.id != me)
-        .map((doc) => BuddyUser.fromFirestore(doc.id, doc.data()))
-        .toList();
-
-    notifyListeners();
+        .snapshots()
+        .listen((snapshot) {
+      _users = snapshot.docs
+          .where((doc) => doc.id != me)
+          .map((doc) => UserModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+      notifyListeners();
+    });
   }
 
   int matchPercent({
@@ -68,24 +72,39 @@ class BuddyState extends ChangeNotifier {
     }
   }
 
-  Future<List<String>> getMyConnectedIds() async {
+  Future<void> disconnect(String otherUserId) async {
     final me = _me;
-    if (me == null) return [];
+    if (me == null) return;
 
-    final snap = await _firestore
+    final users = [me, otherUserId]..sort();
+    final convoId = users.join('_');
+
+    await _firestore.collection('chats').doc(convoId).delete();
+  }
+
+  Stream<List<String>> myConnectedIdsStream() {
+    final me = _me;
+    if (me == null) return const Stream.empty();
+
+    return _firestore
         .collection('chats')
         .where('participants', arrayContains: me)
-        .get();
-
-    final ids = <String>[];
-
-    for (var doc in snap.docs) {
-      final participants = List<String>.from(doc['participants'] ?? []);
-      for (var p in participants) {
-        if (p != me) ids.add(p);
+        .snapshots()
+        .map((snap) {
+      final ids = <String>[];
+      for (var doc in snap.docs) {
+        final participants = List<String>.from(doc['participants'] ?? []);
+        for (var p in participants) {
+          if (p != me) ids.add(p);
+        }
       }
-    }
+      return ids;
+    });
+  }
 
-    return ids;
+  @override
+  void dispose() {
+    _usersSub?.cancel();
+    super.dispose();
   }
 }

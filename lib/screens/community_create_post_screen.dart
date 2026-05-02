@@ -72,14 +72,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                     setState(() => posting = true);
 
-                    await community.createPost(
-                      cityId: cityId,
-                      text: caption,
-                      hashtags: _parseHashtags(hashtagController.text),
-                      imageFile: selectedImage,
-                    );
-
-                    if (mounted) Navigator.pop(context);
+                    try {
+                      await community.createPost(
+                        cityId: cityId,
+                        text: caption,
+                        hashtags: _parseHashtags(hashtagController.text),
+                        imageFile: selectedImage,
+                      );
+                      if (mounted) Navigator.pop(context);
+                    } catch (e) {
+                      setState(() => posting = false);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
+                      }
+                    }
                   },
             child: posting
                 ? const SizedBox(

@@ -76,10 +76,16 @@ class ChatState extends ChangeNotifier {
     return _firestore
         .collection('chats')
         .where('participants', arrayContains: me)
-        .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => ChatThreadModel.fromDoc(d)).toList());
+        .map((snap) {
+      final list = snap.docs.map((d) => ChatThreadModel.fromDoc(d)).toList();
+      list.sort((a, b) {
+        final dateA = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return dateB.compareTo(dateA); // descending
+      });
+      return list;
+    });
   }
 
   Future<void> sendMessage({

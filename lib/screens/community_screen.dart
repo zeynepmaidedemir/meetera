@@ -16,17 +16,16 @@ class CommunityScreen extends StatefulWidget {
 }
 
 class _CommunityScreenState extends State<CommunityScreen> {
-  bool _listening = false;
+  String? _currentCityId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_listening) return;
 
     final cityId = context.read<AppState>().cityId;
-    if (cityId != null && cityId.isNotEmpty) {
+    if (cityId != null && cityId.isNotEmpty && cityId != _currentCityId) {
+      _currentCityId = cityId;
       context.read<CommunityState>().listenPosts(cityId);
-      _listening = true;
     }
   }
 

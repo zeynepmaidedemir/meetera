@@ -48,8 +48,12 @@ class _OnboardingGateState extends State<OnboardingGate> {
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
 
-        // 🔥 local state'e hydrate
-        context.read<AppState>().hydrateFromFirestore(data);
+        // 🔥 local state'e hydrate (delay to avoid setState during build)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            context.read<AppState>().hydrateFromFirestore(data);
+          }
+        });
 
         final cityId = (data['cityId'] ?? '') as String;
         final interests = List<String>.from(data['interests'] ?? []);

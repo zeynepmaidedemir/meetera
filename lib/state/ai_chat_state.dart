@@ -59,8 +59,7 @@ class AiChatState extends ChangeNotifier {
     if (chat == null) return [];
 
     return chat.messages
-        .where((m) => m.isUser)
-        .map((m) => {'role': 'user', 'content': m.text})
+        .map((m) => {'role': m.isUser ? 'user' : 'assistant', 'content': m.text})
         .toList();
   }
 }

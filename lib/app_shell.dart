@@ -10,6 +10,7 @@ import 'screens/community_screen.dart';
 import 'screens/events_screen.dart';
 import 'explore/explore_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/marketplace_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -22,13 +23,20 @@ class _AppShellState extends State<AppShell> {
   int index = 0;
   Offset? aiOffset;
 
-  final screens = const [
-    DashboardScreen(), // ✅ Home tab artık Dashboard
-    BuddyScreen(),
-    CommunityScreen(),
-    EventsScreen(),
-    ExploreScreen(),
-    ProfileScreen(),
+  void _navigate(int newIndex) {
+    setState(() {
+      index = newIndex;
+    });
+  }
+
+  late final List<Widget> screens = [
+    DashboardScreen(onNavigate: _navigate),
+    const BuddyScreen(),
+    const CommunityScreen(),
+    const EventsScreen(),
+    const MarketplaceScreen(),
+    const ExploreScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -63,6 +71,7 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(
@@ -71,11 +80,15 @@ class _AppShellState extends State<AppShell> {
           ),
           NavigationDestination(
             icon: Icon(Icons.forum_outlined),
-            label: 'Community',
+            label: 'Social', // Shortened from Community
           ),
           NavigationDestination(
             icon: Icon(Icons.event_outlined),
             label: 'Events',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            label: 'Market', // Shortened from Marketplace
           ),
           NavigationDestination(
             icon: Icon(Icons.explore_outlined),
