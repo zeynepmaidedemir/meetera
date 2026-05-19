@@ -59,6 +59,7 @@ class _EventCityPickerScreenState extends State<EventCityPickerScreen> {
     Navigator.pop(context, {
       'cityId': cityId,
       'cityName': city,
+      'countryName': country,
     });
   }
 
@@ -67,7 +68,7 @@ class _EventCityPickerScreenState extends State<EventCityPickerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Select City for Events"),
+        title: const Text("Select City"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,

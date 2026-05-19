@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../state/app_state.dart';
 import 'chat_list_screen.dart';
+import 'profile_screen.dart';
+import 'events_screen.dart';
+import 'marketplace_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class DashboardScreen extends StatelessWidget {
   final Function(int) onNavigate;
@@ -19,8 +24,23 @@ class DashboardScreen extends StatelessWidget {
           children: [
             // 👋 Header
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                  },
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    backgroundImage: FirebaseAuth.instance.currentUser?.photoURL?.isNotEmpty == true 
+                        ? CachedNetworkImageProvider(FirebaseAuth.instance.currentUser!.photoURL!) 
+                        : null,
+                    child: (FirebaseAuth.instance.currentUser?.photoURL?.isEmpty ?? true)
+                        ? Icon(Icons.person, color: Theme.of(context).primaryColor)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -41,11 +61,6 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  child: Icon(Icons.notifications_outlined, color: Theme.of(context).primaryColor),
-                )
               ],
             ),
 
@@ -109,50 +124,58 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.3,
-              children: [
-                _QuickActionCard(
-                  title: 'My Chats',
-                  icon: Icons.chat_bubble_rounded,
-                  color: Colors.blue.shade400,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ChatListScreen()),
-                    );
-                  },
-                ),
-                _QuickActionCard(
-                  title: 'My Profile',
-                  icon: Icons.person_rounded,
-                  color: Colors.orange.shade400,
-                  onTap: () {
-                    onNavigate(6); // 6 is Profile Tab
-                  },
-                ),
-                _QuickActionCard(
-                  title: 'Local Events',
-                  icon: Icons.event_rounded,
-                  color: Colors.green.shade400,
-                  onTap: () {
-                    onNavigate(3); // 3 is Events Tab
-                  },
-                ),
-                _QuickActionCard(
-                  title: 'Marketplace',
-                  icon: Icons.storefront_rounded,
-                  color: Colors.pink.shade400,
-                  onTap: () {
-                    onNavigate(4); // 4 is Marketplace Tab
-                  },
-                ),
-              ],
+            SizedBox(
+              height: 130, // Fixed height for the horizontal list
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none, // Allows shadow to be visible outside
+                children: [
+                  SizedBox(
+                    width: 140,
+                    child: _QuickActionCard(
+                      title: 'My Chats',
+                      icon: Icons.chat_bubble_rounded,
+                      color: Colors.blue.shade400,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 140,
+                    child: _QuickActionCard(
+                      title: 'Local Events',
+                      icon: Icons.event_rounded,
+                      color: Colors.green.shade400,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const EventsScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 140,
+                    child: _QuickActionCard(
+                      title: 'Marketplace',
+                      icon: Icons.storefront_rounded,
+                      color: Colors.pink.shade400,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MarketplaceScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

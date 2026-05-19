@@ -11,6 +11,7 @@ class AppState extends ChangeNotifier {
   String? cityId;
 
   Set<String> interests = {};
+  Set<String> blockedUsers = {};
 
   bool onboardingCompleted = false;
 
@@ -21,6 +22,7 @@ class AppState extends ChangeNotifier {
     countryCode = data['countryCode'];
     cityId = data['cityId'];
     interests = Set<String>.from(data['interests'] ?? []);
+    blockedUsers = Set<String>.from(data['blockedUsers'] ?? []);
     onboardingCompleted = data['onboardingCompleted'] ?? false;
 
     notifyListeners();
@@ -62,6 +64,38 @@ class AppState extends ChangeNotifier {
       'onboardingCompleted': true,
     });
   }
+  
+  Future<void> blockUser(String blockUid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    blockedUsers.add(blockUid);
+    notifyListeners();
+    
+    await _firestore.collection('users').doc(user.uid).update({
+      'blockedUsers': FieldValue.arrayUnion([blockUid])
+    });
+  }
+  
+  Future<void> reportContent({
+    required String contentType, // 'post', 'user', 'comment'
+    required String contentId,
+    required String reportedUid,
+    required String reason,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    await _firestore.collection('reports').add({
+      'reporterId': user.uid,
+      'reportedUid': reportedUid,
+      'contentId': contentId,
+      'contentType': contentType,
+      'reason': reason,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'pending',
+    });
+  }
 
   void reset() {
     city = null;
@@ -69,6 +103,7 @@ class AppState extends ChangeNotifier {
     countryCode = null;
     cityId = null;
     interests.clear();
+    blockedUsers.clear();
     onboardingCompleted = false;
     notifyListeners();
   }

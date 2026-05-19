@@ -5,6 +5,7 @@ import '../state/marketplace_state.dart';
 import '../state/app_state.dart';
 import '../models/marketplace_item_model.dart';
 import 'marketplace_add_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -317,11 +318,19 @@ class _MarketItemCardState extends State<_MarketItemCard> {
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   child: hasImage
-                      ? Image.network(
-                          widget.item.imageUrls.first,
+                      ? CachedNetworkImage(
+                          imageUrl: widget.item.imageUrls.first,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey.shade200,
+                            child: const Center(child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.error, color: Colors.grey),
+                          ),
                         )
                       : Container(
                           color: Colors.grey.shade200,

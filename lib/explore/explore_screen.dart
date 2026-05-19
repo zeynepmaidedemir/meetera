@@ -115,14 +115,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
     if (!mounted) return;
 
+    final controller = TextEditingController(text: name);
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) {
         return Padding(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 18,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -135,22 +143,47 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(height: 14),
-              const Text("Select status",
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
+              
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: 'Place name (editable)',
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
 
-              // ✅ 3 dikdörtgen
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("Select status to save",
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              ),
+              const SizedBox(height: 12),
+
               Row(
                 children: [
                   _statusBox("Visited", Colors.green, ExploreStatus.visited,
-                      latLng, name),
+                      latLng, controller),
                   const SizedBox(width: 12),
                   _statusBox(
-                      "Wish", Colors.blue, ExploreStatus.wish, latLng, name),
+                      "Wish", Colors.blue, ExploreStatus.wish, latLng, controller),
                   const SizedBox(width: 12),
                   _statusBox("Favorite", Colors.pink, ExploreStatus.favorite,
-                      latLng, name),
+                      latLng, controller),
                 ],
               ),
               const SizedBox(height: 10),
@@ -166,24 +199,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
     Color color,
     ExploreStatus status,
     LatLng latLng,
-    String resolvedName,
+    TextEditingController controller,
   ) {
     return Expanded(
       child: GestureDetector(
         onTap: () async {
           Navigator.pop(context);
 
+          final finalName = controller.text.trim().isNotEmpty ? controller.text.trim() : "Pinned place";
+
           final place = ExplorePlace(
             id: const Uuid().v4(),
             position: latLng,
-            name: resolvedName,
+            name: finalName,
             status: status,
           );
 
           await context.read<ExploreState>().add(place);
 
           if (!mounted) return;
-          _openEditSheet(place);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("Pin added successfully!"),
+              backgroundColor: color,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 2),
+            ),
+          );
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 18),
@@ -233,9 +279,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
       if (placemarks.isEmpty) return "Pinned place";
 
       final p = placemarks.first;
-      final candidates = [p.name, p.street, p.subLocality, p.locality];
-      for (final c in candidates) {
-        if (c != null && c.trim().isNotEmpty) return c.trim();
+      final parts = <String>[];
+
+      if (p.street != null && p.street!.trim().isNotEmpty) {
+        parts.add(p.street!.trim());
+      } else if (p.name != null && p.name!.trim().isNotEmpty) {
+        parts.add(p.name!.trim());
+      }
+
+      if (p.subLocality != null && p.subLocality!.trim().isNotEmpty) {
+        parts.add(p.subLocality!.trim());
+      } else if (p.locality != null && p.locality!.trim().isNotEmpty) {
+        parts.add(p.locality!.trim());
+      }
+
+      if (parts.isNotEmpty) {
+        return parts.join(', ');
       }
     } catch (_) {}
     return "Pinned place";
@@ -269,46 +328,154 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               TextField(
                 controller: controller,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Place name',
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.check_circle, color: Colors.deepPurple),
+                    onPressed: () async {
+                      final newName = controller.text.trim();
+                      if (newName.isNotEmpty) {
+                        place.name = newName;
+                        await context.read<ExploreState>().update(place);
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Name updated!"),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ),
                 onSubmitted: (v) async {
                   place.name = v.trim().isEmpty ? place.name : v.trim();
                   await context.read<ExploreState>().update(place);
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
                 },
               ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                children: ExploreStatus.values.map((s) {
-                  return ChoiceChip(
-                    label: Text(s.name),
-                    selected: place.status == s,
-                    onSelected: (_) async {
-                      place.status = s;
-                      await context.read<ExploreState>().update(place);
-                      if (mounted) Navigator.pop(context);
-                    },
-                  );
-                }).toList(),
+              const SizedBox(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Change Status",
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _editStatusBox("Visited", Colors.green, ExploreStatus.visited, place, controller),
+                  const SizedBox(width: 12),
+                  _editStatusBox("Wish", Colors.blue, ExploreStatus.wish, place, controller),
+                  const SizedBox(width: 12),
+                  _editStatusBox("Favorite", Colors.pink, ExploreStatus.favorite, place, controller),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await context.read<ExploreState>().remove(place.id);
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Pin removed."),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  label: const Text(
+                    'Remove Pin',
+                    style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade50,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
-              TextButton.icon(
-                onPressed: () async {
-                  await context.read<ExploreState>().remove(place.id);
-                  if (mounted) Navigator.pop(context);
-                },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Remove pin'),
-              ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _editStatusBox(
+    String label,
+    Color color,
+    ExploreStatus status,
+    ExplorePlace place,
+    TextEditingController controller,
+  ) {
+    final isSelected = place.status == status;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          if (isSelected) return;
+          
+          // Also save any typed name
+          final newName = controller.text.trim();
+          if (newName.isNotEmpty && newName != place.name) {
+            place.name = newName;
+          }
+          
+          place.status = status;
+          await context.read<ExploreState>().update(place);
+          if (mounted) Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey.shade300,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : Colors.grey.shade500,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

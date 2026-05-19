@@ -13,71 +13,53 @@ class CityPickerScreen extends StatefulWidget {
 
 class _CityPickerScreenState extends State<CityPickerScreen> {
   final CityService _cityService = CityService();
-
   List<dynamic> countries = [];
   List<dynamic> filteredCountries = [];
-  String searchQuery = '';
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadCountries();
+    _loadCountries();
   }
 
-  Future<void> loadCountries() async {
-    final data = await _cityService.fetchCountries();
-    setState(() {
-      countries = data;
-      filteredCountries = data;
-    });
+  Future<void> _loadCountries() async {
+    try {
+      final data = await _cityService.fetchCountries();
+      setState(() {
+        countries = data;
+        filteredCountries = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+    }
   }
 
-  void filter(String query) {
+  void _filter(String query) {
     final lowerQuery = query.toLowerCase();
-
     setState(() {
-      searchQuery = query;
-
       if (query.isEmpty) {
         filteredCountries = countries;
       } else {
-        filteredCountries = countries
-            .map((country) {
-              final countryName = country['country'];
-              final cities = List<String>.from(country['cities']);
-
-              final matchedCities = cities
-                  .where((city) => city.toLowerCase().contains(lowerQuery))
-                  .toList();
-
-              if (countryName.toLowerCase().contains(lowerQuery)) {
-                // Ülke eşleşti → tüm şehirleri göster
-                return country;
-              }
-
-              if (matchedCities.isNotEmpty) {
-                // Sadece eşleşen şehirleri göster
-                return {'country': countryName, 'cities': matchedCities};
-              }
-
-              return null;
-            })
-            .where((e) => e != null)
-            .toList();
+        filteredCountries = countries.map((country) {
+          final countryName = country['country'];
+          final cities = List<String>.from(country['cities']);
+          final matchedCities = cities.where((c) => c.toLowerCase().contains(lowerQuery)).toList();
+          
+          if (countryName.toLowerCase().contains(lowerQuery)) return country;
+          if (matchedCities.isNotEmpty) return {'country': countryName, 'cities': matchedCities};
+          return null;
+        }).where((e) => e != null).toList();
       }
     });
   }
 
-  Future<void> selectCity({
-    required String city,
-    required String country,
-  }) async {
+  Future<void> _selectCity(String city, String country) async {
     final countryCode = country.substring(0, 2).toUpperCase();
-    final cityId =
-        "${city.toLowerCase().replaceAll(' ', '_')}_${countryCode.toLowerCase()}";
-
+    final cityId = "${city.toLowerCase().replaceAll(' ', '_')}_${countryCode.toLowerCase()}";
+    
     final appState = context.read<AppState>();
-
     await appState.setCity(
       city: city,
       country: country,
@@ -88,45 +70,58 @@ class _CityPickerScreenState extends State<CityPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (countries.isEmpty) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
-      appBar: AppBar(title: const Text("Select your city")),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: "Search country or city...",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: filter,
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              children: filteredCountries.map((country) {
-                final countryName = country['country'];
-                final cities = country['cities'];
-
-                return ExpansionTile(
-                  title: Text(countryName),
-                  children: cities.map<Widget>((city) {
-                    return ListTile(
-                      title: Text(city),
-                      onTap: () => selectCity(city: city, country: countryName),
-                    );
-                  }).toList(),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text("Select your city"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
+      body: isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: "Search country or city...",
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                    ),
+                    onChanged: _filter,
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filteredCountries.length,
+                    itemBuilder: (context, index) {
+                      final country = filteredCountries[index];
+                      final countryName = country['country'];
+                      final cities = country['cities'] as List;
+
+                      return ExpansionTile(
+                        title: Text(countryName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        children: cities.map<Widget>((city) {
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 32),
+                            title: Text(city),
+                            onTap: () => _selectCity(city, countryName),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

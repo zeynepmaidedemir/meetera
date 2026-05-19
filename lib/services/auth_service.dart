@@ -91,24 +91,36 @@ class AuthService {
 
   // 🍏 Apple Login
   Future<UserCredential> signInWithApple() async {
-    final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-    );
+    if (Platform.isAndroid) {
+      final appleProvider = AppleAuthProvider();
+      appleProvider.addScope('email');
+      appleProvider.addScope('name');
+      final userCredential = await _auth.signInWithProvider(appleProvider);
+      
+      // user doc'u garantiye al
+      await ensureUserDoc(user: userCredential.user);
+      
+      return userCredential;
+    } else {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
 
-    final AuthCredential credential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      accessToken: appleCredential.authorizationCode,
-    );
+      final AuthCredential credential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
 
-    final userCredential = await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
 
-    // user doc'u garantiye al
-    await ensureUserDoc(user: userCredential.user);
+      // user doc'u garantiye al
+      await ensureUserDoc(user: userCredential.user);
 
-    return userCredential;
+      return userCredential;
+    }
   }
 
   // 🔴 Logout

@@ -22,3 +22,18 @@ macos/Pods/
 .idea/
 .vscode/
 *.iml
+
+# macOS Junk
+.DS_Store
+**/.DS_Store
+
+# Build output logs (not needed in repo)
+build_output.txt
+ios_build_output.txt
+
+# Duplicate Flutter generated files (with spaces/numbers in names)
+"ios/Flutter/Generated *.xcconfig"
+"ios/Flutter/flutter_export_environment *.sh"
+"ios/Flutter/Flutter *.podspec"
+"ios/Podfile *.lock"
+".flutter-plugins-dependencies *"

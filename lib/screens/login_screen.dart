@@ -159,6 +159,32 @@ class _LoginScreenState extends State<LoginScreen> {
               
               const SizedBox(height: 12),
 
+              // Terms & Privacy
+              if (!isLogin)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Text.rich(
+                    TextSpan(
+                      text: "By signing up, you agree to our ",
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      children: const [
+                        TextSpan(
+                          text: "Terms of Service",
+                          style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: " and "),
+                        TextSpan(
+                          text: "Privacy Policy",
+                          style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: "."),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              if (!isLogin) const SizedBox(height: 12),
+
               // Action Button
               Container(
                 height: 56,

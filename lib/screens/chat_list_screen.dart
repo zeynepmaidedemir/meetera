@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../state/chat_state.dart';
 import 'chat_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -73,7 +74,9 @@ class ChatListScreen extends StatelessWidget {
 
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                      backgroundImage: photoUrl.isNotEmpty 
+                          ? CachedNetworkImageProvider(photoUrl) 
+                          : null,
                       child: photoUrl.isEmpty
                           ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U')
                           : null,

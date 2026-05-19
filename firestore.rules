@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow authenticated users to read everything (basic social app rule)
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+
+    // USER PROFILES: Users can only create or edit their own profile
+    match /users/{userId} {
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // POSTS (Items): Any auth user can create a post. Only the author can edit/delete it.
+    match /posts/{cityId}/items/{itemId} {
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+
+    // COMMENTS: Any auth user can comment. Only author can edit/delete.
+    match /posts/{cityId}/items/{itemId}/comments/{commentId} {
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+
+    // EVENTS: Any auth user can create. Only creator can edit/delete.
+    match /events/{cityId}/items/{eventId} {
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
+    }
+
+    // BUDDIES: Users can only write their own buddy status
+    match /buddies/{cityId}/users/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

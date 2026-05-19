@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
+import '../services/auth_service.dart';
 import 'edit_profile_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -25,6 +27,108 @@ class ProfileScreen extends StatelessWidget {
     final bio = (data['bio'] ?? '').toString().trim();
     if (bio.isNotEmpty) return bio;
     return "No bio yet. Tell people who you are ✨";
+  }
+
+  Future<void> _deleteAccount(BuildContext context, User user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Account"),
+        content: const Text(
+            "Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be erased."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    if (!context.mounted) return;
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 1. Delete user data completely from Firestore (Clean wipe)
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+      
+      // 2. Attempt to anonymize authored UGC across the platform.
+      // This uses collectionGroup queries. If Firestore indexes are not yet built,
+      // this might fail, but the catch block ensures the Auth user is still deleted.
+      try {
+        final batch = FirebaseFirestore.instance.batch();
+        
+        // Anonymize Posts
+        final posts = await FirebaseFirestore.instance
+            .collectionGroup('items')
+            .where('authorId', isEqualTo: user.uid)
+            .get();
+        for (var doc in posts.docs) {
+          batch.update(doc.reference, {
+            'authorName': 'Deleted User',
+            'authorPhotoUrl': '',
+          });
+        }
+        
+        // Anonymize Comments
+        final comments = await FirebaseFirestore.instance
+            .collectionGroup('comments')
+            .where('authorId', isEqualTo: user.uid)
+            .get();
+        for (var doc in comments.docs) {
+          batch.update(doc.reference, {
+            'authorName': 'Deleted User',
+            'authorPhotoUrl': '', // If comments store photoUrl
+          });
+        }
+        
+        await batch.commit();
+      } catch (e) {
+        debugPrint("Could not anonymize all UGC (might need composite indexes): $e");
+      }
+      
+      // 2. Delete the Auth user
+      await user.delete();
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // pop loading
+      context.read<AppState>().reset(); // resets state and routes to auth
+    } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // pop loading
+      
+      if (e.code == 'requires-recent-login') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("For security reasons, please log out and log back in before deleting your account."),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete account: ${e.message}")),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("An unexpected error occurred. Please try again.")),
+      );
+    }
   }
 
   @override
@@ -67,8 +171,15 @@ class ProfileScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  context.read<AppState>().reset();
+                  // Pop all routes and go to AuthWrapper (Login screen)
+                  Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+                  
+                  // Use AuthService to properly sign out from Firebase and Google/Apple
+                  await AuthService().signOut();
+                  
+                  if (context.mounted) {
+                    context.read<AppState>().reset();
+                  }
                 },
               ),
             ],
@@ -81,7 +192,7 @@ class ProfileScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 44,
                     backgroundImage:
-                        photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                        photoUrl.isNotEmpty ? CachedNetworkImageProvider(photoUrl) : null,
                     child: photoUrl.isEmpty
                         ? const Icon(Icons.person, size: 42)
                         : null,
@@ -173,6 +284,15 @@ class ProfileScreen extends StatelessWidget {
                           builder: (_) => const EditProfileScreen()),
                     );
                   },
+                ),
+              ),
+              const SizedBox(height: 40),
+              TextButton.icon(
+                onPressed: () => _deleteAccount(context, user),
+                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                label: const Text(
+                  "Delete Account",
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

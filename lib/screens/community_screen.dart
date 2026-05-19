@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../state/app_state.dart';
 import '../state/community_state.dart';
@@ -65,7 +66,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
                 final likedBy = List<String>.from(data['likedBy'] ?? []);
                 final isLiked = uid != null && likedBy.contains(uid);
-                final isMine = uid != null && data['authorId'] == uid;
+                final authorId = (data['authorId'] ?? '').toString();
+                final isMine = uid != null && authorId == uid;
+                
+                if (appState.blockedUsers.contains(authorId)) {
+                  return const SizedBox.shrink(); // Hide blocked posts
+                }
 
                 final hashtags = List<String>.from(data['hashtags'] ?? []);
 
@@ -112,40 +118,56 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   ),
                                 ),
                               ),
-                              if (isMine)
-                                PopupMenuButton<String>(
-                                  onSelected: (v) async {
-                                    if (v == 'edit') {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => EditPostScreen(
-                                            postId: doc.id,
-                                            initialText:
-                                                (data['text'] ?? '').toString(),
-                                            initialHashtags: hashtags,
-                                          ),
+                              PopupMenuButton<String>(
+                                onSelected: (v) async {
+                                  if (v == 'edit') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditPostScreen(
+                                          postId: doc.id,
+                                          initialText:
+                                              (data['text'] ?? '').toString(),
+                                          initialHashtags: hashtags,
                                         ),
+                                      ),
+                                    );
+                                  } else if (v == 'delete') {
+                                    await state.deletePost(
+                                      cityId: cityId,
+                                      postId: doc.id,
+                                    );
+                                  } else if (v == 'report') {
+                                    await appState.reportContent(
+                                      contentType: 'post',
+                                      contentId: doc.id,
+                                      reportedUid: data['authorId'] ?? '',
+                                      reason: 'Inappropriate content',
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Post reported. Our team will review it shortly.")),
                                       );
                                     }
-                                    if (v == 'delete') {
-                                      await state.deletePost(
-                                        cityId: cityId,
-                                        postId: doc.id,
+                                  } else if (v == 'block') {
+                                    await appState.blockUser(data['authorId'] ?? '');
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("User blocked. You will no longer see their posts.")),
                                       );
                                     }
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Delete'),
-                                    ),
-                                  ],
-                                ),
+                                  }
+                                },
+                                itemBuilder: (_) => isMine
+                                    ? const [
+                                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                      ]
+                                    : const [
+                                        PopupMenuItem(value: 'report', child: Text('Report Post')),
+                                        PopupMenuItem(value: 'block', child: Text('Block User', style: TextStyle(color: Colors.red))),
+                                      ],
+                              ),
                             ],
                           ),
 
@@ -179,11 +201,21 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             const SizedBox(height: 12),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(16),
-                              child: Image.network(
-                                data['imageUrl'],
+                              child: CachedNetworkImage(
+                                imageUrl: data['imageUrl'],
                                 height: 180,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  height: 180,
+                                  color: Colors.grey[200],
+                                  child: const Center(child: CircularProgressIndicator()),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  height: 180,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.error, color: Colors.grey),
+                                ),
                               ),
                             ),
                           ],

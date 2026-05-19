@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/auth_service.dart';
+import 'event_city_picker_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -163,7 +165,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 backgroundImage: selectedImage != null
                     ? FileImage(selectedImage!)
                     : (existingPhotoUrl != null && existingPhotoUrl!.isNotEmpty
-                        ? NetworkImage(existingPhotoUrl!)
+                        ? CachedNetworkImageProvider(existingPhotoUrl!)
                         : null) as ImageProvider?,
                 child: selectedImage == null &&
                         (existingPhotoUrl == null || existingPhotoUrl!.isEmpty)
@@ -183,14 +185,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: cityController,
-              decoration: const InputDecoration(labelText: "City"),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EventCityPickerScreen()),
+                );
+                if (result != null && result is Map<String, String>) {
+                  setState(() {
+                    cityController.text = result['cityName'] ?? '';
+                    countryController.text = result['countryName'] ?? '';
+                  });
+                }
+              },
+              child: AbsorbPointer(
+                child: TextField(
+                  controller: cityController,
+                  decoration: const InputDecoration(
+                    labelText: "City",
+                    suffixIcon: Icon(Icons.arrow_forward_ios, size: 16),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: countryController,
-              decoration: const InputDecoration(labelText: "Country"),
+            AbsorbPointer(
+              child: TextField(
+                controller: countryController,
+                decoration: const InputDecoration(
+                  labelText: "Country",
+                  helperText: "Country updates automatically when you select a city.",
+                ),
+              ),
             ),
             const SizedBox(height: 30),
             loading

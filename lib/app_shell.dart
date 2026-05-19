@@ -33,23 +33,21 @@ class _AppShellState extends State<AppShell> {
     DashboardScreen(onNavigate: _navigate),
     const BuddyScreen(),
     const CommunityScreen(),
-    const EventsScreen(),
-    const MarketplaceScreen(),
     const ExploreScreen(),
-    const ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    aiOffset ??= Offset(16, size.height - 180);
+    aiOffset ??= Offset(16, size.height - 240); // Adjusted for new nav bar
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Stack(
         children: [
           screens[index],
 
-          // 🤖 DRAGGABLE AI (istersen sabit FAB'a da çevirebiliriz)
+          // 🤖 DRAGGABLE AI
           Positioned(
             left: aiOffset!.dx,
             top: aiOffset!.dy,
@@ -68,37 +66,61 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            label: 'Buddy',
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          height: 64,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withOpacity(0.15),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.forum_outlined),
-            label: 'Social', // Shortened from Community
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildNavItem(0, Icons.home_rounded, Icons.home_outlined),
+              _buildNavItem(1, Icons.people_rounded, Icons.people_outline),
+              _buildNavItem(2, Icons.forum_rounded, Icons.forum_outlined),
+              _buildNavItem(3, Icons.explore_rounded, Icons.explore_outlined),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.event_outlined),
-            label: 'Events',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            label: 'Market', // Shortened from Marketplace
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            label: 'Explore',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int itemIndex, IconData activeIcon, IconData inactiveIcon) {
+    final isSelected = index == itemIndex;
+    return GestureDetector(
+      onTap: () => setState(() => index = itemIndex),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 20 : 12,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Icon(
+          isSelected ? activeIcon : inactiveIcon,
+          color: isSelected ? const Color(0xFF6366F1) : Colors.grey.shade400,
+          size: isSelected ? 28 : 24,
+        ),
       ),
     );
   }

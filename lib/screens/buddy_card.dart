@@ -6,6 +6,7 @@ import '../state/app_state.dart';
 import '../state/buddy_state.dart';
 import '../state/chat_state.dart';
 import 'chat_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class BuddyCard extends StatefulWidget {
   final UserModel buddy;
@@ -63,7 +64,7 @@ class _BuddyCardState extends State<BuddyCard> {
                   CircleAvatar(
                     radius: 24,
                     backgroundImage: widget.buddy.photoUrl.isNotEmpty
-                        ? NetworkImage(widget.buddy.photoUrl)
+                        ? CachedNetworkImageProvider(widget.buddy.photoUrl)
                         : null,
                     child: widget.buddy.photoUrl.isEmpty
                         ? Text(
