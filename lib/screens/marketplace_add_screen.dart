@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 import '../state/app_state.dart';
 import '../state/marketplace_state.dart';
+import '../services/error_handler.dart';
 
 class MarketplaceAddScreen extends StatefulWidget {
   const MarketplaceAddScreen({super.key});
@@ -39,10 +40,21 @@ class _MarketplaceAddScreenState extends State<MarketplaceAddScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final appState = context.read<AppState>();
     
-    if (user == null || appState.cityLabel == null) return;
+    if (user == null || appState.cityLabel.isEmpty) {
+      UiHelpers.showPremiumSnackBar(context, message: "User session or city info not found.");
+      return;
+    }
     
     final title = titleController.text.trim();
-    if (title.isEmpty) return;
+    if (title.isEmpty) {
+      UiHelpers.showPremiumSnackBar(context, message: "Please enter the item title.");
+      return;
+    }
+
+    if (selectedImage == null) {
+      UiHelpers.showPremiumSnackBar(context, message: "Please select a photo for the item.");
+      return;
+    }
 
     setState(() => isPosting = true);
 
@@ -50,12 +62,10 @@ class _MarketplaceAddScreenState extends State<MarketplaceAddScreen> {
       final itemId = const Uuid().v4();
       List<String> imageUrls = [];
 
-      if (selectedImage != null) {
-        final ref = FirebaseStorage.instance.ref().child('marketplace_images/\$itemId.jpg');
-        await ref.putFile(selectedImage!);
-        final url = await ref.getDownloadURL();
-        imageUrls.add(url);
-      }
+      final ref = FirebaseStorage.instance.ref().child('marketplace_images/$itemId.jpg');
+      await ref.putFile(selectedImage!);
+      final url = await ref.getDownloadURL();
+      imageUrls.add(url);
 
       await FirebaseFirestore.instance.collection('marketplace_items').doc(itemId).set({
         'sellerId': user.uid,
@@ -71,16 +81,22 @@ class _MarketplaceAddScreenState extends State<MarketplaceAddScreen> {
 
       if (mounted) {
         context.read<MarketplaceState>().fetchItems(appState.cityLabel);
+        UiHelpers.showPremiumSnackBar(
+          context,
+          message: "Your item was successfully added to the marketplace! 🛍️",
+          isError: false,
+        );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+        UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
       }
-    }
-
-    if (mounted) {
-      setState(() => isPosting = false);
+    } finally {
+      if (mounted) {
+        setState(() => isPosting = false);
+      }
     }
   }
 
@@ -130,12 +146,32 @@ class _MarketplaceAddScreenState extends State<MarketplaceAddScreen> {
           TextField(
             controller: priceController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Price (0 for free/exchange)'),
+            decoration: const InputDecoration(labelText: 'Price (0 for free or exchange)'),
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: isPosting ? null : submit,
-            child: isPosting ? const CircularProgressIndicator(color: Colors.white) : const Text('Post Item'),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: isPosting ? null : submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: isPosting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Add Item',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+            ),
           )
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'event_city_picker_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -82,19 +83,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    try {
+      final picked = await picker.pickImage(source: ImageSource.gallery);
 
-    if (picked != null) {
-      setState(() {
-        selectedImage = File(picked.path);
-      });
+      if (picked != null) {
+        setState(() {
+          selectedImage = File(picked.path);
+          loading = true;
+        });
 
-      final url = await _authService.uploadProfilePhoto(selectedImage!);
+        if (mounted) {
+          UiHelpers.showPremiumSnackBar(
+            context,
+            message: "Uploading your profile photo, please wait...",
+            isError: false,
+            duration: const Duration(seconds: 2),
+          );
+        }
 
-      if (!mounted) return;
-      setState(() {
-        existingPhotoUrl = url;
-      });
+        final url = await _authService.uploadProfilePhoto(selectedImage!);
+
+        if (!mounted) return;
+        setState(() {
+          existingPhotoUrl = url;
+        });
+
+        UiHelpers.showPremiumSnackBar(
+          context,
+          message: "Profile photo updated successfully! ✨",
+          isError: false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+        UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
@@ -105,6 +135,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final displayName = nameController.text.trim();
     final cityName = cityController.text.trim();
     final country = countryController.text.trim();
+
+    if (displayName.isEmpty) {
+      UiHelpers.showPremiumSnackBar(context, message: "Please enter your display name.");
+      return;
+    }
+
+    if (cityName.isEmpty) {
+      UiHelpers.showPremiumSnackBar(context, message: "Please select your city.");
+      return;
+    }
 
     // countryCode / cityId yoksa üret (fallback)
     final countryCode = (_countryCode.trim().isNotEmpty)
@@ -129,12 +169,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         interests: _interests,
       );
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        UiHelpers.showPremiumSnackBar(
+          context,
+          message: "Profile updated successfully! ✨",
+          isError: false,
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
+        final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+        UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
       }
     } finally {
       if (mounted) setState(() => loading = false);
@@ -220,15 +266,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            loading
-                ? const CircularProgressIndicator()
-                : SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _save,
-                      child: const Text("Save"),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: loading ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
+                  elevation: 0,
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        "Save",
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
           ],
         ),
       ),

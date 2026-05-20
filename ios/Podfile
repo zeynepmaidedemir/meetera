@@ -41,6 +41,11 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      # Disable code signing for pods on simulator to prevent "detritus" errors in Xcode 26+
+      if config.build_settings['SDKROOT'] && config.build_settings['SDKROOT'].include?('iphonesimulator')
+        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+      end
     end
   end
 end

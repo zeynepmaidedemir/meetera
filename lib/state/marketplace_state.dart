@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/marketplace_item_model.dart';
-import '../services/auth_service.dart';
 
 import 'dart:async';
 
 class MarketplaceState extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _auth = AuthService();
 
   List<MarketplaceItemModel> _items = [];
   bool _isLoading = false;

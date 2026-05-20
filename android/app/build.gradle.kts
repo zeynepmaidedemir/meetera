@@ -17,9 +17,6 @@ android {
     isCoreLibraryDesugaringEnabled = true
 }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
 
     dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
@@ -47,4 +44,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

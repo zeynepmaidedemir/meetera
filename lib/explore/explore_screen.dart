@@ -95,7 +95,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ),
               const SizedBox(height: 12),
               if (state.badges.isEmpty)
-                const Text("Henüz rozet yok 😅")
+                const Text("No badges earned yet 😅")
               else
                 ...state.badges.map((b) => ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -148,7 +148,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  labelText: 'Place name (editable)',
+                  labelText: 'Location Name (Editable)',
                   filled: true,
                   fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -169,7 +169,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Select status to save",
+                child: Text("Select a status to save",
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               ),
               const SizedBox(height: 12),

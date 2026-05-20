@@ -13,6 +13,7 @@ dependencies:
 
   # State Management
   provider: ^6.1.2
+  rxdart: ^0.28.0
 
   # Firebase
   firebase_core: ^4.7.0
@@ -20,6 +21,9 @@ dependencies:
   cloud_firestore: ^6.2.0
   firebase_storage: ^13.1.0
   google_sign_in: ^6.2.1
+
+  # Network
+  connectivity_plus: ^6.0.3
 
   # Maps & Location
   google_maps_flutter: ^2.6.0
@@ -49,6 +53,7 @@ dependencies:
   cached_network_image: ^3.4.1
   sign_in_with_apple: ^7.0.1
   intl: ^0.20.2
+  flutter_native_splash: ^2.4.1
 
 dev_dependencies:
   flutter_test:
@@ -62,9 +67,16 @@ flutter_launcher_icons:
   image_path: "assets/icon.png"
   min_sdk_android: 21
 
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/splash_ekrani.png"
+  android: true
+  ios: true
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/cities.json
     - assets/icon.png
+    - assets/splash_ekrani.png

@@ -3,11 +3,17 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
+  static const bool enableTestExceptions = false;
+
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
 
   /// 🔔 INIT
   static Future<void> init() async {
+    if (enableTestExceptions) {
+      throw Exception("Test: NotificationService init failed!");
+    }
+
     tzdata.initializeTimeZones();
 
     const AndroidInitializationSettings androidSettings =

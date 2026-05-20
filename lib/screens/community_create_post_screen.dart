@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../state/community_state.dart';
+import '../services/error_handler.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -68,7 +69,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ? null
                 : () async {
                     final caption = captionController.text.trim();
-                    if (caption.isEmpty) return;
+                    if (caption.isEmpty) {
+                      UiHelpers.showPremiumSnackBar(context, message: "Please write a caption for your post.");
+                      return;
+                    }
 
                     setState(() => posting = true);
 
@@ -79,13 +83,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         hashtags: _parseHashtags(hashtagController.text),
                         imageFile: selectedImage,
                       );
-                      if (mounted) Navigator.pop(context);
+                      if (mounted) {
+                        UiHelpers.showPremiumSnackBar(
+                          context,
+                          message: "Your post was shared successfully! ✨",
+                          isError: false,
+                        );
+                        Navigator.pop(context);
+                      }
                     } catch (e) {
                       setState(() => posting = false);
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $e')),
-                        );
+                        final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+                        UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
                       }
                     }
                   },
@@ -93,11 +103,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
                   )
                 : const Text(
                     "Share",
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6366F1), fontSize: 16),
                   ),
           ),
         ],
@@ -122,7 +132,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         Icon(Icons.add_photo_alternate_outlined, size: 42),
                         SizedBox(height: 10),
                         Text(
-                          "Add a photo",
+                          "Add a Photo",
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ],

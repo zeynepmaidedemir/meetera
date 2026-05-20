@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'edit_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -26,25 +27,26 @@ class ProfileScreen extends StatelessWidget {
   String _fallbackBio(Map<String, dynamic> data) {
     final bio = (data['bio'] ?? '').toString().trim();
     if (bio.isNotEmpty) return bio;
-    return "No bio yet. Tell people who you are ✨";
+    return "No bio added yet. Tell others about yourself ✨";
   }
 
   Future<void> _deleteAccount(BuildContext context, User user) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Account"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Delete Account", style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text(
-            "Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be erased."),
+            "Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be deleted."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("Delete"),
+            child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -58,7 +60,7 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
     );
 
     try {
@@ -66,8 +68,6 @@ class ProfileScreen extends StatelessWidget {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
       
       // 2. Attempt to anonymize authored UGC across the platform.
-      // This uses collectionGroup queries. If Firestore indexes are not yet built,
-      // this might fail, but the catch block ensures the Auth user is still deleted.
       try {
         final batch = FirebaseFirestore.instance.batch();
         
@@ -91,43 +91,62 @@ class ProfileScreen extends StatelessWidget {
         for (var doc in comments.docs) {
           batch.update(doc.reference, {
             'authorName': 'Deleted User',
-            'authorPhotoUrl': '', // If comments store photoUrl
+            'authorPhotoUrl': '', 
           });
         }
         
         await batch.commit();
       } catch (e) {
-        debugPrint("Could not anonymize all UGC (might need composite indexes): $e");
+        debugPrint("Could not anonymize all UGC: $e");
       }
       
-      // 2. Delete the Auth user
+      // 3. Delete the Auth user
       await user.delete();
 
       if (!context.mounted) return;
       Navigator.pop(context); // pop loading
       context.read<AppState>().reset(); // resets state and routes to auth
+      
+      UiHelpers.showPremiumSnackBar(
+        context,
+        message: "Your account was deleted successfully. Goodbye! 👋",
+        isError: false,
+      );
     } on FirebaseAuthException catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context); // pop loading
       
       if (e.code == 'requires-recent-login') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("For security reasons, please log out and log back in before deleting your account."),
-            duration: Duration(seconds: 5),
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.security, color: Colors.orange),
+                SizedBox(width: 8),
+                Text("Security Alert", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: const Text(
+                "For security reasons, you must have logged in recently to perform critical actions like deleting your account. Please log out, log in again, and try again."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("OK", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to delete account: ${e.message}")),
-        );
+        final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+        UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
       }
     } catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("An unexpected error occurred. Please try again.")),
-      );
+      final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+      UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
     }
   }
 
@@ -223,7 +242,7 @@ class ProfileScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 (cityName.isEmpty && country.isEmpty)
-                                    ? "City not set yet"
+                                    ? "No city selected"
                                     : "$cityName, $country",
                                 style: TextStyle(
                                   color: Colors.black.withOpacity(0.7),

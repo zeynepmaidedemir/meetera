@@ -10,7 +10,8 @@ import '../services/auth_service.dart';
 import '../state/app_state.dart';
 
 class OnboardingGate extends StatefulWidget {
-  const OnboardingGate({super.key});
+  final User user;
+  const OnboardingGate({super.key, required this.user});
 
   @override
   State<OnboardingGate> createState() => _OnboardingGateState();
@@ -21,7 +22,7 @@ class _OnboardingGateState extends State<OnboardingGate> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = widget.user.uid;
     final ref = FirebaseFirestore.instance.collection('users').doc(uid);
 
     return StreamBuilder<DocumentSnapshot>(
@@ -38,7 +39,7 @@ class _OnboardingGateState extends State<OnboardingGate> {
         if (!snapshot.hasData || !snapshot.data!.exists) {
           if (!_ensured) {
             _ensured = true;
-            AuthService().ensureUserDoc();
+            AuthService().ensureUserDoc(user: widget.user);
           }
 
           return const Scaffold(

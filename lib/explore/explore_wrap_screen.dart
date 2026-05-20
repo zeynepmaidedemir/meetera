@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../services/error_handler.dart';
+
 import 'state/explore_state.dart';
 import 'models/place_status.dart';
 
@@ -75,7 +77,7 @@ class _ExploreWrapScreenState extends State<ExploreWrapScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              "Share your journey to your story!",
+              "Share your journey on your story!",
               style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
             ),
             const SizedBox(height: 20),
@@ -104,8 +106,11 @@ class _ExploreWrapScreenState extends State<ExploreWrapScreen> {
     } catch (e) {
       debugPrint("Share error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Wrap export failed")),
+        final friendlyMessage = ErrorMapper.getFriendlyMessage(e);
+        UiHelpers.showPremiumSnackBar(
+          context,
+          message: "Failed to share card: $friendlyMessage",
+          isError: true,
         );
       }
     } finally {
@@ -299,7 +304,7 @@ class _ExploreWrapScreenState extends State<ExploreWrapScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _miniStatPill("❤️ Loved", "$favorite", fg, fgMuted, pillBg),
+                    child: _miniStatPill("❤️ Favorites", "$favorite", fg, fgMuted, pillBg),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

@@ -21,7 +21,7 @@ class AuthWrapper extends StatelessWidget {
 
         // Logged in
         if (snapshot.hasData && snapshot.data != null) {
-          return const OnboardingGate();
+          return OnboardingGate(user: snapshot.data!);
         }
 
         // Not logged in

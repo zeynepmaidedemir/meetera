@@ -7,6 +7,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthService {
+  static const bool enableTestExceptions = false;
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -43,6 +45,10 @@ class AuthService {
   // 🔵 Email Register
   Future<UserCredential> registerWithEmail(
       String email, String password) async {
+    if (enableTestExceptions) {
+      throw Exception("Test: registerWithEmail failed!");
+    }
+
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -56,6 +62,10 @@ class AuthService {
 
   // 🔵 Email Login
   Future<UserCredential> loginWithEmail(String email, String password) async {
+    if (enableTestExceptions) {
+      throw Exception("Test: loginWithEmail failed!");
+    }
+
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -69,6 +79,10 @@ class AuthService {
 
   // 🔵 Google Login
   Future<UserCredential> signInWithGoogle() async {
+    if (enableTestExceptions) {
+      throw Exception("Test: signInWithGoogle failed!");
+    }
+
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception("Google sign in cancelled");
@@ -144,6 +158,7 @@ class AuthService {
 
     await _firestore.collection('users').doc(user.uid).set({
       'displayName': displayName,
+      'bio': bio,
       'country': country,
       'countryCode': countryCode,
       'cityId': cityId,
@@ -168,5 +183,10 @@ class AuthService {
     }, SetOptions(merge: true));
 
     return url;
+  }
+
+  // 📧 Send Password Reset Email
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
   }
 }

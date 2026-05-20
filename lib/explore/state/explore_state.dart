@@ -56,14 +56,19 @@ class ExploreState extends ChangeNotifier {
         .collection('explore')
         .doc(uid)
         .collection('pins')
-        .orderBy('createdAt')
         .snapshots()
         .listen((snap) {
+      final list = snap.docs.map((d) => ExplorePlace.fromJson(d.id, d.data())).toList();
+      // Sort in-memory by createdAt to ensure robust ordering without database indexes
+      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
       _places
         ..clear()
-        ..addAll(snap.docs.map((d) => ExplorePlace.fromJson(d.id, d.data())));
+        ..addAll(list);
       _refreshBadges();
       notifyListeners();
+    }, onError: (e) {
+      debugPrint("Error listening to pins: $e");
     });
   }
 
@@ -76,12 +81,16 @@ class ExploreState extends ChangeNotifier {
       place.visitedAt = DateTime.now();
     }
 
-    await _firestore
-        .collection('explore')
-        .doc(uid)
-        .collection('pins')
-        .doc(place.id)
-        .set(place.toJson());
+    try {
+      await _firestore
+          .collection('explore')
+          .doc(uid)
+          .collection('pins')
+          .doc(place.id)
+          .set(place.toJson());
+    } catch (e) {
+      debugPrint("Error adding pin to Firestore: $e");
+    }
   }
 
   Future<void> update(ExplorePlace place) async {
@@ -92,24 +101,32 @@ class ExploreState extends ChangeNotifier {
       place.visitedAt = DateTime.now();
     }
 
-    await _firestore
-        .collection('explore')
-        .doc(uid)
-        .collection('pins')
-        .doc(place.id)
-        .update(place.toJson());
+    try {
+      await _firestore
+          .collection('explore')
+          .doc(uid)
+          .collection('pins')
+          .doc(place.id)
+          .update(place.toJson());
+    } catch (e) {
+      debugPrint("Error updating pin in Firestore: $e");
+    }
   }
 
   Future<void> remove(String id) async {
     final uid = _uid;
     if (uid == null) return;
 
-    await _firestore
-        .collection('explore')
-        .doc(uid)
-        .collection('pins')
-        .doc(id)
-        .delete();
+    try {
+      await _firestore
+          .collection('explore')
+          .doc(uid)
+          .collection('pins')
+          .doc(id)
+          .delete();
+    } catch (e) {
+      debugPrint("Error deleting pin from Firestore: $e");
+    }
   }
 
   // streak

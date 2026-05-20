@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../state/event_state.dart';
 import '../state/app_state.dart';
+import '../services/error_handler.dart';
 
 class CreateEventSheet extends StatefulWidget {
   const CreateEventSheet({super.key});
@@ -19,6 +20,8 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
 
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = TimeOfDay.now();
+
+  bool _creating = false;
 
   @override
   void dispose() {
@@ -54,7 +57,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
             // TITLE
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Event title'),
+              decoration: const InputDecoration(labelText: 'Event Title'),
             ),
             const SizedBox(height: 12),
 
@@ -93,7 +96,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       setState(() => _selectedDate = picked);
                     }
                   },
-                  child: const Text('Select date'),
+                  child: const Text('Select Date'),
                 ),
               ],
             ),
@@ -112,7 +115,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       setState(() => _selectedTime = picked);
                     }
                   },
-                  child: const Text('Select time'),
+                  child: const Text('Select Time'),
                 ),
               ],
             ),
@@ -122,41 +125,86 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
             // CREATE BUTTON
             SizedBox(
               width: double.infinity,
+              height: 52,
               child: FilledButton(
-                onPressed: () async {
-                  final title = _titleController.text.trim();
-                  final description = _descriptionController.text.trim();
-                  final location = _locationController.text.trim();
+                onPressed: _creating
+                    ? null
+                    : () async {
+                        final title = _titleController.text.trim();
+                        final description = _descriptionController.text.trim();
+                        final location = _locationController.text.trim();
 
-                  if (title.isEmpty ||
-                      description.isEmpty ||
-                      location.isEmpty ||
-                      user == null ||
-                      appState.cityId == null) {
-                    return;
-                  }
+                        if (title.isEmpty) {
+                          UiHelpers.showPremiumSnackBar(context, message: "Please enter the event title.");
+                          return;
+                        }
+                        if (description.isEmpty) {
+                          UiHelpers.showPremiumSnackBar(context, message: "Please enter the event description.");
+                          return;
+                        }
+                        if (location.isEmpty) {
+                          UiHelpers.showPremiumSnackBar(context, message: "Please enter the event location.");
+                          return;
+                        }
 
-                  final dateTime = DateTime(
-                    _selectedDate.year,
-                    _selectedDate.month,
-                    _selectedDate.day,
-                    _selectedTime.hour,
-                    _selectedTime.minute,
-                  );
+                        if (user == null || appState.cityId == null) {
+                          UiHelpers.showPremiumSnackBar(context, message: "City or user session not found.");
+                          return;
+                        }
 
-                  await eventState.addEvent(
-                    cityId: appState.cityId!,
-                    title: title,
-                    description: description,
-                    location: location,
-                    dateTime: dateTime,
-                    creatorId: user.uid,
-                    creatorName: user.displayName ?? user.email ?? "User",
-                  );
+                        setState(() => _creating = true);
 
-                  Navigator.pop(context);
-                },
-                child: const Text('Create event'),
+                        final dateTime = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day,
+                          _selectedTime.hour,
+                          _selectedTime.minute,
+                        );
+
+                        try {
+                          await eventState.addEvent(
+                            cityId: appState.cityId!,
+                            title: title,
+                            description: description,
+                            location: location,
+                            dateTime: dateTime,
+                            creatorId: user.uid,
+                            creatorName: user.displayName ?? user.email ?? "User",
+                          );
+
+                          if (mounted) {
+                            UiHelpers.showPremiumSnackBar(
+                              context,
+                              message: "Event successfully created! 🎉",
+                              isError: false,
+                            );
+                            Navigator.pop(context);
+                          }
+                        } catch (e) {
+                          setState(() => _creating = false);
+                          if (mounted) {
+                            final friendlyMsg = ErrorMapper.getFriendlyMessage(e);
+                            UiHelpers.showPremiumSnackBar(context, message: friendlyMsg, isError: true);
+                          }
+                        }
+                      },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _creating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Create Event',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
               ),
             ),
           ],
